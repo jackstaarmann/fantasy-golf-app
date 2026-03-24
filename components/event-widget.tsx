@@ -1,4 +1,5 @@
 // --- imports ---
+import type { LeaderboardPlayer } from "@/api";
 import { fetchAthlete, fetchEventMeta, fetchLeaderboard } from "@/api";
 import supabase from "@/supabase";
 import { useRouter } from "expo-router";
@@ -64,9 +65,10 @@ export default function HomeEventWidget() {
   const [round, setRound] = useState<number | null>(null);
   const [countdown, setCountdown] = useState<string>("");
 
-  const [leader, setLeader] = useState<LeaderInfo | null>(null);
-
+  const [teeTime, setTeeTime] = useState<string | null>(null);
   const firstTeeTimeRef = useRef<string | null>(null);
+
+  const [leader, setLeader] = useState<LeaderInfo | null>(null);
 
   // ---------------------------
   // INITIAL LOAD
@@ -82,7 +84,7 @@ export default function HomeEventWidget() {
     updateCountdown();
     const interval = setInterval(updateCountdown, 60000);
     return () => clearInterval(interval);
-  }, [event, nextEvent]);
+  }, [event, nextEvent, teeTime]);
 
   // ---------------------------
   // LOAD BASE EVENT + PICKS
@@ -149,13 +151,6 @@ export default function HomeEventWidget() {
       setNextEvent(next ?? null);
     }
 
-    // fallback tee time for up_next
-    if (activeEvent?.up_next && !firstTeeTimeRef.current) {
-      if (activeEvent.activation_time) {
-        firstTeeTimeRef.current = activeEvent.activation_time;
-      }
-    }
-
     setEvent(activeEvent);
 
     if (activeEvent && user) {
@@ -172,7 +167,7 @@ export default function HomeEventWidget() {
   }
 
   // ---------------------------
-  // LOAD LEADER AFTER EVENT IS KNOWN
+  // LOAD LEADER / DEFENDING CHAMP
   // ---------------------------
   useEffect(() => {
     if (!event) return;
@@ -182,7 +177,8 @@ export default function HomeEventWidget() {
     } else if (event.linger_window) {
       loadCurrentLeader(event);
     } else if (event.up_next) {
-      loadDefendingChampion(event);
+      loadDefendingChampion(event); // show defending champ
+      loadTeeTimeOnly(event);       // fetch tee time without overwriting champ
     } else if (event.is_completed) {
       loadCurrentLeader(event);
     }
@@ -210,9 +206,9 @@ export default function HomeEventWidget() {
             })[0]
           : leaderboard[0];
 
-      // only wire tee time when in_progress
-      if (activeEvent.in_progress && first.teeTime) {
+      if (first.teeTime) {
         firstTeeTimeRef.current = first.teeTime;
+        setTeeTime(first.teeTime);
       }
 
       setRound(first.round ?? null);
@@ -227,6 +223,31 @@ export default function HomeEventWidget() {
       });
     } catch (e) {
       console.log("Failed to load leader", e);
+    }
+  }
+
+  // ---------------------------
+  // LOAD ONLY TEE TIME (for up_next)
+  // ---------------------------
+  async function loadTeeTimeOnly(activeEvent: any) {
+    try {
+      const leaderboard = await fetchLeaderboard(Number(activeEvent.id));
+      if (!leaderboard || leaderboard.length === 0) return;
+
+      const sorted = leaderboard
+        .filter((p): p is LeaderboardPlayer & { teeTime: string } => p.teeTime !== null)
+        .sort(
+          (a, b) =>
+            new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime()
+        );
+
+      const earliest = sorted[0];
+      if (earliest?.teeTime) {
+        firstTeeTimeRef.current = earliest.teeTime;
+        setTeeTime(earliest.teeTime);
+      }
+    } catch (e) {
+      console.log("Failed to load tee time", e);
     }
   }
 
@@ -249,15 +270,13 @@ export default function HomeEventWidget() {
   }
 
   // ---------------------------
-  // COUNTDOWN (tee-off + next-week picks)
+  // COUNTDOWN
   // ---------------------------
   function updateCountdown() {
     let target: Date | null = null;
 
-    if (event?.up_next) {
-      if (firstTeeTimeRef.current) {
-        target = new Date(firstTeeTimeRef.current);
-      }
+    if (event?.up_next && firstTeeTimeRef.current) {
+      target = new Date(firstTeeTimeRef.current);
     } else if (event?.is_completed) {
       target = getNextTuesdayAt3AMET();
     }
@@ -267,12 +286,11 @@ export default function HomeEventWidget() {
       return;
     }
 
-    const start = target.getTime();
     const now = Date.now();
-    const diff = start - now;
+    const diff = target.getTime() - now;
 
     if (diff <= 0) {
-      setCountdown("Picking opens soon");
+      setCountdown("Teeing off soon");
       return;
     }
 
@@ -389,17 +407,14 @@ export default function HomeEventWidget() {
               {statusText}
             </Text>
 
-            {/* ⏱ Countdown to tee-off for up_next */}
             {event.up_next && countdown !== "" && (
               <Text style={{ marginTop: 4, color: "#555" }}>{countdown}</Text>
             )}
 
-            {/* ⏱ Completed event shows countdown to next week's picks */}
             {event.is_completed && countdown !== "" && (
               <Text style={{ marginTop: 4, color: "#555" }}>{countdown}</Text>
             )}
 
-            {/* Normal pick status for non-completed events */}
             {!event.is_completed && (
               <Text style={{ marginTop: 4, color: "#555" }}>
                 {userPicks.length === 0
@@ -409,7 +424,6 @@ export default function HomeEventWidget() {
             )}
           </View>
 
-          {/* Picks button */}
           {(!event.is_completed ||
             (event.is_completed && countdown !== "")) && (
             <TouchableOpacity
@@ -430,7 +444,7 @@ export default function HomeEventWidget() {
           )}
         </View>
 
-        {/* RIGHT SIDE — Leader */}
+        {/* RIGHT SIDE — Leader / Defending Champ */}
         {leader && leader.headshot && leader.flag && (
           <View
             style={{
