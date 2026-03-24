@@ -5,13 +5,13 @@ export const formatTimeWithTimezone = (
   if (!iso) return '';
 
   try {
-    return new Date(iso).toLocaleString('en-US', {
+    return new Date(iso).toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
       timeZone: timezone || 'UTC',
     });
   } catch (e) {
-    return new Date(iso).toLocaleString('en-US', {
+    return new Date(iso).toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
     });

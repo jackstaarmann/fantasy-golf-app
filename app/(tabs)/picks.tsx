@@ -295,8 +295,9 @@ export default function PicksScreen() {
         inLeague={userInLeague}
         leagueId={userLeagueId}
         leaderboard={leaderboard}
+        isOpenForPicks={tournament.is_open_for_picks}
       />
-
+      
       {/* League membership */}
       {!userInLeague && (
         <View style={{ marginTop: 20 }}>
@@ -323,33 +324,45 @@ export default function PicksScreen() {
       {/* League Picks */}
       {userInLeague && (
         <>
-          <Text style={[styles.sectionTitle, { marginTop: 30 }]}>
-            League Picks
-          </Text>
+          {/* 🔒 Hide league picks while picking is open */}
+          {tournament.is_open_for_picks ? (
+            <View style={{ marginTop: 30, padding: 16, backgroundColor: "#fff", borderRadius: 8, borderWidth: 1, borderColor: "#e0e0e0" }}>
+              <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 6 }}>
+                League Picks Locked
+              </Text>
+              <Text style={{ fontSize: 14, color: "#555" }}>
+                League picks will unlock once picking closes.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={[styles.sectionTitle, { marginTop: 30 }]}>
+                League Picks
+              </Text>
 
-          <FlatList
-            data={leaguePicks}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => {
-              const name =
-                item.users?.team_name ||
-                item.users?.name ||
-                item.users?.email ||
-                'Unknown User';
+              <FlatList
+                data={leaguePicks}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => {
+                  const name =
+                    item.users?.team_name ||
+                    item.users?.name ||
+                    item.users?.email ||
+                    "Unknown User";
 
-              const isCurrentUser = item.user_id === currentUser.id;
+                  const isCurrentUser = item.user_id === currentUser.id;
 
-              return (
-                <View style={styles.pickItem}>
-                  <Text
-                    style={isCurrentUser ? styles.userPick : styles.otherPick}
-                  >
-                    {name}: {item.golferName ?? 'Unknown Golfer'}
-                  </Text>
-                </View>
-              );
-            }}
-          />
+                  return (
+                    <View style={styles.pickItem}>
+                      <Text style={isCurrentUser ? styles.userPick : styles.otherPick}>
+                        {name}: {item.golferName ?? "Unknown Golfer"}
+                      </Text>
+                    </View>
+                  );
+                }}
+              />
+            </>
+          )}
         </>
       )}
 

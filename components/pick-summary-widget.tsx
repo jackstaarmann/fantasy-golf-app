@@ -1,13 +1,20 @@
 import type { LeaderboardPlayer } from "@/api";
 import { usePickSummary } from "@/api";
 import { useState } from "react";
-import { ActivityIndicator, Modal, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 type Props = {
   tournamentId: string | number;
   inLeague: boolean;
   leagueId?: string | null;
   leaderboard: LeaderboardPlayer[];
+  isOpenForPicks: boolean; // ⭐ NEW
 };
 
 type PickSummaryItem = {
@@ -23,6 +30,7 @@ export function PickSummaryWidget({
   inLeague,
   leagueId,
   leaderboard,
+  isOpenForPicks, // ⭐ NEW
 }: Props) {
   const [mode, setMode] = useState<"league" | "global">(
     inLeague ? "league" : "global"
@@ -39,33 +47,81 @@ export function PickSummaryWidget({
   );
 
   const hasData =
-    data &&
-    Array.isArray(data.topPicks) &&
-    data.topPicks.length > 0;
+    data && Array.isArray(data.topPicks) && data.topPicks.length > 0;
 
-  const topPicksWithEarnings: PickSummaryItem[] =
-    hasData
-      ? data.topPicks.map((p: PickSummaryItem) => {
-          const lb = leaderboard.find((g) => g.id === p.golferId);
+  const topPicksWithEarnings: PickSummaryItem[] = hasData
+    ? data.topPicks.map((p: PickSummaryItem) => {
+        const lb = leaderboard.find((g) => g.id === p.golferId);
 
-          return {
-            ...p,
-            projectedEarnings: lb?.projected_earnings ?? 0,
-          };
-        })
-      : [];
+        return {
+          ...p,
+          projectedEarnings: lb?.projected_earnings ?? 0,
+        };
+      })
+    : [];
 
-  const yourPickWithEarnings =
-    data?.yourPick
-      ? (() => {
-          const lb = leaderboard.find((g) => g.id === data.yourPick.golferId);
-          return {
-            ...data.yourPick,
-            projectedEarnings: lb?.projected_earnings ?? 0,
-          };
-        })()
-      : null;
+  const yourPickWithEarnings = data?.yourPick
+    ? (() => {
+        const lb = leaderboard.find((g) => g.id === data.yourPick.golferId);
+        return {
+          ...data.yourPick,
+          projectedEarnings: lb?.projected_earnings ?? 0,
+        };
+      })()
+    : null;
 
+  // -------------------------------------------------------
+  // 🔒 LOCKED STATE — picks are still open
+  // -------------------------------------------------------
+  if (isOpenForPicks) {
+    return (
+      <View
+        style={{
+          marginTop: 20,
+          padding: 16,
+          borderRadius: 12,
+          backgroundColor: "#fff",
+          borderWidth: 1,
+          borderColor: "#e0e0e0",
+          alignItems: "center",
+        }}
+      >
+        {/* Lock Icon */}
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: "#e0e0e0",
+            justifyContent: "center",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <Text style={{ fontSize: 24, color: "#555" }}>🔒</Text>
+        </View>
+
+        <Text style={{ fontSize: 18, fontWeight: "600", color: "#000" }}>
+          Pick Trends Locked
+        </Text>
+
+        <Text
+          style={{
+            marginTop: 6,
+            color: "#555",
+            textAlign: "center",
+            fontSize: 14,
+          }}
+        >
+          Trends will unlock once picks close.
+        </Text>
+      </View>
+    );
+  }
+
+  // -------------------------------------------------------
+  // NORMAL PICK SUMMARY (picks closed)
+  // -------------------------------------------------------
   return (
     <View
       style={{
@@ -76,8 +132,6 @@ export function PickSummaryWidget({
         shadowColor: "#000",
         shadowOpacity: 0.05,
         shadowRadius: 6,
-
-        // ⭐ Outer border for consistent card styling
         borderWidth: 1,
         borderColor: "#e0e0e0",
       }}
@@ -96,7 +150,7 @@ export function PickSummaryWidget({
         <View
           style={{
             flexDirection: "row",
-            backgroundColor: "#e0e0e0", // ⭐ unified
+            backgroundColor: "#e0e0e0",
             borderRadius: 8,
           }}
         >
@@ -179,7 +233,7 @@ export function PickSummaryWidget({
           <View
             style={{
               height: 8,
-              backgroundColor: "#e0e0e0", // ⭐ unified
+              backgroundColor: "#e0e0e0",
               borderRadius: 4,
               overflow: "hidden",
             }}
@@ -220,7 +274,7 @@ export function PickSummaryWidget({
               borderRadius: 12,
               maxWidth: 300,
               borderWidth: 1,
-              borderColor: "#e0e0e0", // ⭐ consistent modal border
+              borderColor: "#e0e0e0",
             }}
           >
             <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
@@ -244,7 +298,7 @@ export function PickSummaryWidget({
               paddingVertical: 10,
               borderBottomWidth:
                 idx === topPicksWithEarnings.length - 1 ? 0 : 1,
-              borderColor: "#e0e0e0", // ⭐ unified
+              borderColor: "#e0e0e0",
               flexDirection: "row",
               justifyContent: "space-between",
             }}
@@ -270,16 +324,14 @@ export function PickSummaryWidget({
             padding: 12,
             backgroundColor: "#f7f7f7",
             borderRadius: 8,
-
-            // ⭐ Add border for consistency
             borderWidth: 1,
             borderColor: "#e0e0e0",
           }}
         >
           <Text style={{ fontWeight: "600" }}>Your Pick</Text>
           <Text style={{ marginTop: 4 }}>
-            Pick Rate: {(yourPickWithEarnings.pickRate * 100).toFixed(1)}% • Rank{" "}
-            {yourPickWithEarnings.rank}
+            Pick Rate: {(yourPickWithEarnings.pickRate * 100).toFixed(1)}% •
+            Rank {yourPickWithEarnings.rank}
           </Text>
           <Text style={{ marginTop: 4, color: "#777" }}>
             Earnings: $

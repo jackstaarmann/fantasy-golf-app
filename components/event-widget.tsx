@@ -14,46 +14,35 @@ import {
 function getNextTuesdayAt3AMET(): Date {
   const now = new Date();
 
-  // Convert "now" to UTC components
   const utcYear = now.getUTCFullYear();
   const utcMonth = now.getUTCMonth();
   const utcDate = now.getUTCDate();
-  const utcDay = now.getUTCDay(); // 0=Sun,1=Mon,2=Tue,...
+  const utcDay = now.getUTCDay();
 
-  // 3 AM ET = 07:00 UTC
-  const TARGET_UTC_HOUR = 7;
+  const TARGET_UTC_HOUR = 7; // 3 AM ET = 07:00 UTC
 
-  // Build today's Tuesday 3 AM ET (if today is Tuesday)
-  const todayTuesdayTarget = new Date(Date.UTC(
-    utcYear,
-    utcMonth,
-    utcDate,
-    TARGET_UTC_HOUR,
-    0,
-    0,
-    0
-  ));
+  const todayTuesdayTarget = new Date(
+    Date.UTC(utcYear, utcMonth, utcDate, TARGET_UTC_HOUR, 0, 0, 0)
+  );
 
-  // Case 1: Today is Tuesday AND we haven't passed 3 AM ET yet
   if (utcDay === 2 && now.getTime() < todayTuesdayTarget.getTime()) {
     return todayTuesdayTarget;
   }
 
-  // Otherwise: find the *next* Tuesday
   let daysUntilNextTuesday = (2 - utcDay + 7) % 7;
   if (daysUntilNextTuesday === 0) daysUntilNextTuesday = 7;
 
-  const nextTuesdayTarget = new Date(Date.UTC(
-    utcYear,
-    utcMonth,
-    utcDate + daysUntilNextTuesday,
-    TARGET_UTC_HOUR,
-    0,
-    0,
-    0
-  ));
-
-  return nextTuesdayTarget;
+  return new Date(
+    Date.UTC(
+      utcYear,
+      utcMonth,
+      utcDate + daysUntilNextTuesday,
+      TARGET_UTC_HOUR,
+      0,
+      0,
+      0
+    )
+  );
 }
 
 type LeaderInfo = {
@@ -87,7 +76,7 @@ export default function HomeEventWidget() {
   }, []);
 
   // ---------------------------
-  // COUNTDOWN EFFECT (always runs)
+  // COUNTDOWN EFFECT
   // ---------------------------
   useEffect(() => {
     updateCountdown();
@@ -114,58 +103,57 @@ export default function HomeEventWidget() {
     let activeEvent: any = null;
 
     if (data && data.length > 0) {
-      // 1️⃣ In Progress
       const inProgress = data.find((t) => t.in_progress === true);
       if (inProgress) activeEvent = inProgress;
 
-      // 2️⃣ Linger Window
       if (!activeEvent) {
         const lingering = data.find((t) => t.linger_window === true);
         if (lingering) activeEvent = lingering;
       }
 
-      // 3️⃣ Up Next
       if (!activeEvent) {
         const upNext = data.find((t) => t.up_next === true);
         if (upNext) activeEvent = upNext;
       }
 
-      // 4️⃣ Most recent completed
       if (!activeEvent) {
-        const completed = [...data]
-          .filter((t) => t.is_completed === true)
-          .sort(
-            (a, b) =>
-              new Date(b.activation_time).getTime() -
-              new Date(a.activation_time).getTime()
-          )[0];
+        const completed =
+          [...data]
+            .filter((t) => t.is_completed === true)
+            .sort(
+              (a, b) =>
+                new Date(b.activation_time).getTime() -
+                new Date(a.activation_time).getTime()
+            )[0] ?? null;
 
-        activeEvent = completed ?? null;
+        activeEvent = completed;
       }
 
-      // ⭐ Find next event chronologically
       let next = null;
 
       if (activeEvent) {
-        next = [...data]
-          .filter(
-            (t) =>
-              new Date(t.activation_time).getTime() >
-              new Date(activeEvent.activation_time).getTime()
-          )
-          .sort(
-            (a, b) =>
-              new Date(a.activation_time).getTime() -
-              new Date(b.activation_time).getTime()
-          )[0];
+        next =
+          [...data]
+            .filter(
+              (t) =>
+                new Date(t.activation_time).getTime() >
+                new Date(activeEvent.activation_time).getTime()
+            )
+            .sort(
+              (a, b) =>
+                new Date(a.activation_time).getTime() -
+                new Date(b.activation_time).getTime()
+            )[0] ?? null;
       }
 
       setNextEvent(next ?? null);
     }
 
-    // fallback tee time for upcoming events
-    if (activeEvent?.up_next && activeEvent.activation_time) {
-      firstTeeTimeRef.current = activeEvent.activation_time;
+    // fallback tee time for up_next
+    if (activeEvent?.up_next && !firstTeeTimeRef.current) {
+      if (activeEvent.activation_time) {
+        firstTeeTimeRef.current = activeEvent.activation_time;
+      }
     }
 
     setEvent(activeEvent);
@@ -217,11 +205,15 @@ export default function HomeEventWidget() {
           ? tiedLeaders.sort((a, b) => {
               if (!a.teeTime || !b.teeTime) return 0;
               return (
-                new Date(a.teeTime).getTime() -
-                new Date(b.teeTime).getTime()
+                new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime()
               );
             })[0]
           : leaderboard[0];
+
+      // only wire tee time when in_progress
+      if (activeEvent.in_progress && first.teeTime) {
+        firstTeeTimeRef.current = first.teeTime;
+      }
 
       setRound(first.round ?? null);
 
@@ -257,18 +249,16 @@ export default function HomeEventWidget() {
   }
 
   // ---------------------------
-  // COUNTDOWN (correct Tuesday 3AM ET logic)
+  // COUNTDOWN (tee-off + next-week picks)
   // ---------------------------
   function updateCountdown() {
     let target: Date | null = null;
 
     if (event?.up_next) {
-      // For up_next, use tee time
       if (firstTeeTimeRef.current) {
         target = new Date(firstTeeTimeRef.current);
       }
     } else if (event?.is_completed) {
-      // ⭐ Picks open at next Tuesday 3:00 AM ET
       target = getNextTuesdayAt3AMET();
     }
 
@@ -393,16 +383,23 @@ export default function HomeEventWidget() {
               {event.name}
             </Text>
 
-            <Text style={{ marginTop: 4, color: "#007AFF", fontWeight: "600" }}>
+            <Text
+              style={{ marginTop: 4, color: "#007AFF", fontWeight: "600" }}
+            >
               {statusText}
             </Text>
 
-            {/* ⭐ Completed event shows countdown */}
+            {/* ⏱ Countdown to tee-off for up_next */}
+            {event.up_next && countdown !== "" && (
+              <Text style={{ marginTop: 4, color: "#555" }}>{countdown}</Text>
+            )}
+
+            {/* ⏱ Completed event shows countdown to next week's picks */}
             {event.is_completed && countdown !== "" && (
               <Text style={{ marginTop: 4, color: "#555" }}>{countdown}</Text>
             )}
 
-            {/* ⭐ Normal pick status for non-completed events */}
+            {/* Normal pick status for non-completed events */}
             {!event.is_completed && (
               <Text style={{ marginTop: 4, color: "#555" }}>
                 {userPicks.length === 0
@@ -412,11 +409,9 @@ export default function HomeEventWidget() {
             )}
           </View>
 
-          {/* Show picks button when:
-              - event is not completed, OR
-              - event is completed but we're in the "countdown to picks open" state
-          */}
-          {(!event.is_completed || (event.is_completed && countdown !== "")) && (
+          {/* Picks button */}
+          {(!event.is_completed ||
+            (event.is_completed && countdown !== "")) && (
             <TouchableOpacity
               onPress={goToPicks}
               style={{

@@ -25,8 +25,6 @@ export async function fetchLeaderboard(
   const url =
     `https://abanaxcoxomkspaafcpm.supabase.co/functions/v1/get-leaderboard?tournament_id=${tournamentId}`;
 
-  console.log("Calling get-leaderboard function…");
-
   const res = await fetch(url, {
     method: "GET",
     headers: {
@@ -249,62 +247,4 @@ export function usePickSummary(
   }, [tournamentId, mode, leagueId]);
 
   return { data, loading };
-}
-
-export type NewsArticle = {
-  headline: string;
-  description?: string;
-  url: string;
-};
-
-export function usePgaNews(limit: number = 5) {
-  const [featured, setFeatured] = useState<NewsArticle | null>(null);
-  const [headlines, setHeadlines] = useState<NewsArticle[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const listRes = await fetch(
-          `https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/media?page=1&limit=${limit}`
-        );
-        const listJson = await listRes.json();
-
-        if (!listJson.items || listJson.items.length === 0) {
-          setLoading(false);
-          return;
-        }
-
-        // Fetch each article
-        const articles = await Promise.all(
-          listJson.items.map(async (item: any) => {
-            const res = await fetch(item.$ref);
-            return res.json();
-          })
-        );
-
-        // Shape data
-        const shaped = articles
-          .map((a: any) => ({
-            headline: a.headline,
-            description: a.description,
-            url: a.links?.web?.href ?? "",
-          }))
-          .filter((a) => a.url);
-
-        if (shaped.length > 0) {
-          setFeatured(shaped[0]);
-          setHeadlines(shaped.slice(1, 4));
-        }
-      } catch (err) {
-        console.error("Failed to load PGA news:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
-  }, [limit]);
-
-  return { featured, headlines, loading };
 }

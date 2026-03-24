@@ -45,7 +45,7 @@ export default function LeaderboardWidget() {
   }
 
   // -----------------------------
-  // Fetch correct tournament (NEW 5-STATE LOGIC)
+  // Fetch correct tournament (5-STATE LOGIC)
   // -----------------------------
   async function loadTournament() {
     const { data } = await supabase
@@ -86,19 +86,10 @@ export default function LeaderboardWidget() {
       activeEvent = completed ?? null;
     }
 
-    // Only load leaderboard for:
-    // - in_progress
-    // - linger_window
-    // - is_completed
-    if (
-      activeEvent &&
-      (activeEvent.in_progress ||
-        activeEvent.linger_window ||
-        activeEvent.is_completed)
-    ) {
+    // NEW: Load leaderboard for ANY activeEvent
+    if (activeEvent) {
       setTournamentId(Number(activeEvent.id));
     } else {
-      // If up_next → no leaderboard yet
       setTournamentId(null);
       setPlayers([]);
       setLoading(false);
@@ -282,10 +273,10 @@ export default function LeaderboardWidget() {
         </>
       )}
 
-      {/* No leaderboard for up_next */}
+      {/* No tournament at all */}
       {!loading && !tournamentId && (
         <Text style={{ color: "#555", marginTop: 4 }}>
-          Leaderboard will appear when the field is finalized.
+          Leaderboard will appear when tee times are posted.
         </Text>
       )}
 

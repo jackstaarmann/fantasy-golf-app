@@ -4,7 +4,6 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import AuthProvider, { useAuth } from './providers/AuthProvider';
 
-
 function RootNavigation() {
   const { session, loading } = useAuth();
   const segments = useSegments();
@@ -13,25 +12,44 @@ function RootNavigation() {
   useEffect(() => {
     if (loading) return;
 
-    const inTabsGroup = segments[0] === '(tabs)';
-    const onLogin = segments[0] === 'login';
-    const onPgaLeaderboard = segments[0] === 'pga-leaderboard';
-    const onRules = segments[0] === 'rules';
-    const onAllNews = segments[0] === 'all-news';   // ⭐ allow all-news screen
+    const root = segments[0];
 
-    if (!session && inTabsGroup) {
-      router.replace('/login');
-    } 
-    else if (
-      session &&
-      !inTabsGroup &&
-      !onPgaLeaderboard &&
-      !onRules &&
-      !onAllNews   // ⭐ allow this route for logged-in users
-    ) {
+    // Screens that do NOT require authentication
+    const publicScreens = ['login'];
+
+    // Screens that DO require authentication but are NOT inside (tabs)
+    const extraAuthScreens = [
+      'pga-leaderboard',
+      'rules',
+      'all-news',
+      'join-league',
+      'create-league'
+    ];
+
+    const inTabsGroup = root === '(tabs)';
+    const isPublic = publicScreens.includes(root);
+    const isExtraAuth = extraAuthScreens.includes(root);
+
+    // -------------------------
+    // NOT LOGGED IN
+    // -------------------------
+    if (!session) {
+      if (!isPublic) {
+        router.replace('/login');
+      }
+      return;
+    }
+
+    // -------------------------
+    // LOGGED IN
+    // -------------------------
+    // Allow:
+    // - (tabs)
+    // - any extra authenticated screen
+    if (!inTabsGroup && !isExtraAuth) {
       router.replace('/(tabs)');
     }
-  }, [session, loading, segments, router]);
+  }, [session, loading, segments]);
 
   if (loading) {
     return (
@@ -47,7 +65,9 @@ function RootNavigation() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="pga-leaderboard" />
       <Stack.Screen name="rules" />
-      <Stack.Screen name="all-news" />   {/* ⭐ NEW ROUTE */}
+      <Stack.Screen name="all-news" />
+      <Stack.Screen name="join-league" />
+      <Stack.Screen name="create-league" />
     </Stack>
   );
 }
