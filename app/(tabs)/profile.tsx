@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   },
 
   saveButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#0E734A',
     padding: 14,
     borderRadius: 8,
     marginTop: 30,
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   modalClose: {
     marginTop: 10,
     padding: 12,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#0E734A',
     borderRadius: 8,
     alignItems: 'center',
   },

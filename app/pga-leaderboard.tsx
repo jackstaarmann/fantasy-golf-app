@@ -159,7 +159,7 @@ export default function PGALeaderboard() {
         }}
       >
         <TouchableOpacity onPress={() => router.back()} style={{ paddingRight: 16 }}>
-          <Text style={{ fontSize: 18, color: "#007AFF", fontWeight: "600" }}>
+          <Text style={{ fontSize: 18, color: "#0E734A", fontWeight: "600" }}>
             ← Back
           </Text>
         </TouchableOpacity>

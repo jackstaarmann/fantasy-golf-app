@@ -285,7 +285,7 @@ export default function LeaderboardWidget() {
         onPressIn={() => router.push("/pga-leaderboard")}
         style={{
           marginTop: 12,
-          backgroundColor: "#007AFF",
+          backgroundColor: "#0E734A",
           paddingHorizontal: 14,
           paddingVertical: 8,
           borderRadius: 6,

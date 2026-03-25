@@ -176,6 +176,6 @@ const styles = StyleSheet.create({
   allNewsText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#007AFF",
+    color: "#0E734A",
   },
 });

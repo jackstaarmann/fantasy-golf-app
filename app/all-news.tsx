@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     paddingVertical: 6,
     paddingHorizontal: 14,
-    backgroundColor: "#007AFF",
+    backgroundColor: "#0E734A",
     borderRadius: 6,
   },
   modalButtonText: {

@@ -402,7 +402,7 @@ export default function HomeEventWidget() {
             </Text>
 
             <Text
-              style={{ marginTop: 4, color: "#007AFF", fontWeight: "600" }}
+              style={{ marginTop: 4, color: "#0E734A", fontWeight: "600" }}
             >
               {statusText}
             </Text>
@@ -429,7 +429,7 @@ export default function HomeEventWidget() {
             <TouchableOpacity
               onPress={goToPicks}
               style={{
-                backgroundColor: "#007AFF",
+                backgroundColor: "#0E734A",
                 paddingHorizontal: 14,
                 paddingVertical: 8,
                 borderRadius: 6,
@@ -496,7 +496,7 @@ export default function HomeEventWidget() {
             <Text
               style={{
                 fontSize: 11,
-                color: "#007AFF",
+                color: "#000000",
                 textAlign: "center",
                 marginTop: 2,
               }}

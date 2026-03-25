@@ -248,7 +248,7 @@ export default function PicksScreen() {
   if (loading || !tournament) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#0E734A" />
       </View>
     );
   }
@@ -256,7 +256,7 @@ export default function PicksScreen() {
   if (loadingField) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#0E734A" />
         <Text style={{ marginTop: 12, fontSize: 16, color: '#555' }}>
           Loading your pick…
         </Text>
@@ -313,7 +313,7 @@ export default function PicksScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.makePickButton, { backgroundColor: '#007AFF' }]}
+            style={[styles.makePickButton, { backgroundColor: '#0E734A' }]}
             onPress={() => router.push('/create-league')}
           >
             <Text style={styles.buttonText}>Create a League</Text>
@@ -331,7 +331,7 @@ export default function PicksScreen() {
                 League Picks Locked
               </Text>
               <Text style={{ fontSize: 14, color: "#555" }}>
-                League picks will unlock once picking closes.
+                League picks will be shown once picking closes.
               </Text>
             </View>
           ) : (
@@ -420,13 +420,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
   },
-  userPick: { fontWeight: 'bold', color: '#007AFF', fontSize: 18 },
+  userPick: { fontWeight: 'bold', color: '#0E734A', fontSize: 18 },
   otherPick: { color: '#333', fontSize: 16 },
   centered: { alignItems: 'center', marginTop: 50 },
   makePickButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#0E734A',
     borderRadius: 8,
     marginBottom: 10,
     marginTop: 10,

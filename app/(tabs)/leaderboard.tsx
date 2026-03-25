@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: '#ddd',
   },
-  activeTab: { borderBottomColor: '#007AFF' },
+  activeTab: { borderBottomColor: '#0E734A' },
   tabText: { fontSize: 16, fontWeight: 'bold' },
   row: {
     flexDirection: 'row',
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   modalButton: {
     width: "100%",
     paddingVertical: 12,
-    backgroundColor: "#007AFF",
+    backgroundColor: "#0E734A",
     borderRadius: 8,
     marginTop: 10,
   },
