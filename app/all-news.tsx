@@ -1,3 +1,4 @@
+import { useTheme } from "@/app/providers/ThemeProvider";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -9,7 +10,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -24,6 +25,8 @@ export default function AllNewsPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [showInfo, setShowInfo] = useState(false);
 
+  const { themeColors } = useTheme();
+
   useEffect(() => {
     async function load() {
       try {
@@ -34,7 +37,10 @@ export default function AllNewsPage() {
 
         const sorted = (json.all ?? []).sort((a: Article, b: Article) => {
           if (!a.published || !b.published) return 0;
-          return new Date(b.published).getTime() - new Date(a.published).getTime();
+          return (
+            new Date(b.published).getTime() -
+            new Date(a.published).getTime()
+          );
         });
 
         setArticles(sorted);
@@ -51,20 +57,54 @@ export default function AllNewsPage() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: themeColors.background }}
+    >
       {/* Header */}
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { borderColor: themeColors.border }]}>
         {/* Back Button */}
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[
+            styles.backButton,
+            {
+              borderColor: themeColors.text,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.backButtonText,
+              { color: themeColors.text },
+            ]}
+          >
+            ←
+          </Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Golf News</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>
+          Golf News
+        </Text>
 
         {/* Info Button */}
-        <TouchableOpacity onPress={() => setShowInfo(true)} style={styles.infoButton}>
-          <View style={styles.infoCircle}>
-            <Text style={styles.infoText}>i</Text>
+        <TouchableOpacity
+          onPress={() => setShowInfo(true)}
+          style={styles.infoButton}
+        >
+          <View
+            style={[
+              styles.infoCircle,
+              { borderColor: themeColors.text },
+            ]}
+          >
+            <Text
+              style={[
+                styles.infoText,
+                { color: themeColors.text },
+              ]}
+            >
+              i
+            </Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -77,21 +117,60 @@ export default function AllNewsPage() {
         onRequestClose={() => setShowInfo(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Content Attribution</Text>
-
-            <Text style={styles.modalText}>
-              All article headlines, images, and external links are provided courtesy of ESPN.
+          <View
+            style={[
+              styles.modalBox,
+              {
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalTitle,
+                { color: themeColors.text },
+              ]}
+            >
+              Content Attribution
             </Text>
 
-            <Pressable onPress={() => setShowInfo(false)} style={styles.modalButton}>
-              <Text style={styles.modalButtonText}>Close</Text>
+            <Text
+              style={[
+                styles.modalText,
+                { color: themeColors.text + "99" },
+              ]}
+            >
+              All article headlines, images, and external links are provided
+              courtesy of ESPN.
+            </Text>
+
+            <Pressable
+              onPress={() => setShowInfo(false)}
+              style={[
+                styles.modalButton,
+                { backgroundColor: themeColors.tint },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.modalButtonText,
+                  { color: themeColors.background },
+                ]}
+              >
+                Close
+              </Text>
             </Pressable>
           </View>
         </View>
       </Modal>
 
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={[
+          styles.container,
+          { backgroundColor: themeColors.background },
+        ]}
+      >
         {articles.map((a, idx) => (
           <TouchableOpacity
             key={idx}
@@ -105,7 +184,14 @@ export default function AllNewsPage() {
               />
             )}
 
-            <Text style={styles.headline}>{a.headline}</Text>
+            <Text
+              style={[
+                styles.headline,
+                { color: themeColors.text },
+              ]}
+            >
+              {a.headline}
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -116,7 +202,6 @@ export default function AllNewsPage() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    backgroundColor: "#fff",
   },
   headerRow: {
     flexDirection: "row",
@@ -125,25 +210,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 10,
     paddingTop: 10,
+    borderBottomWidth: 1,
   },
   backButton: {
     width: 26,
     height: 26,
     borderRadius: 13,
     borderWidth: 1.5,
-    borderColor: "#000",
     alignItems: "center",
     justifyContent: "center",
   },
   backButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
   },
   title: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#000",
     textAlign: "center",
   },
 
@@ -159,14 +242,12 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 1.5,
-    borderColor: "#000",
     alignItems: "center",
     justifyContent: "center",
   },
   infoText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
   },
 
   card: {
@@ -181,7 +262,6 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 17,
     fontWeight: "600",
-    color: "#000",
   },
 
   // Modal styles
@@ -193,31 +273,26 @@ const styles = StyleSheet.create({
   },
   modalBox: {
     width: "80%",
-    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 20,
-    elevation: 4,
+    borderWidth: 1,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "700",
     marginBottom: 10,
-    color: "#000",
   },
   modalText: {
     fontSize: 15,
-    color: "#444",
     marginBottom: 20,
   },
   modalButton: {
     alignSelf: "flex-end",
     paddingVertical: 6,
     paddingHorizontal: 14,
-    backgroundColor: "#0E734A",
     borderRadius: 6,
   },
   modalButtonText: {
-    color: "#fff",
     fontWeight: "600",
   },
 });

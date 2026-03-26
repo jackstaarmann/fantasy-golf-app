@@ -1,13 +1,21 @@
 import { fetchLeaderboard, type LeaderboardPlayer } from "@/api";
+import { useTheme } from "@/app/providers/ThemeProvider";
 import { formatTimeWithTimezone } from "@/components/utils/time";
 import supabase from "@/supabase";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  View
+} from "react-native";
 
 export default function LeaderboardWidget() {
   const router = useRouter();
+  const { themeColors } = useTheme();
+
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [tournamentId, setTournamentId] = useState<number | null>(null);
@@ -57,23 +65,19 @@ export default function LeaderboardWidget() {
 
     let activeEvent: any = null;
 
-    // 1️⃣ In Progress
     const inProgress = data.find((t) => t.in_progress === true);
     if (inProgress) activeEvent = inProgress;
 
-    // 2️⃣ Linger Window
     if (!activeEvent) {
       const lingering = data.find((t) => t.linger_window === true);
       if (lingering) activeEvent = lingering;
     }
 
-    // 3️⃣ Up Next
     if (!activeEvent) {
       const upNext = data.find((t) => t.up_next === true);
       if (upNext) activeEvent = upNext;
     }
 
-    // 4️⃣ Most recent completed
     if (!activeEvent) {
       const completed = [...data]
         .filter((t) => t.is_completed === true)
@@ -86,7 +90,6 @@ export default function LeaderboardWidget() {
       activeEvent = completed ?? null;
     }
 
-    // NEW: Load leaderboard for ANY activeEvent
     if (activeEvent) {
       setTournamentId(Number(activeEvent.id));
     } else {
@@ -150,9 +153,9 @@ export default function LeaderboardWidget() {
       style={{
         padding: 16,
         borderRadius: 12,
-        backgroundColor: "#fff",
+        backgroundColor: themeColors.card,
         borderWidth: 1,
-        borderColor: "#e0e0e0",
+        borderColor: themeColors.border,
         marginBottom: 16,
       }}
     >
@@ -161,13 +164,13 @@ export default function LeaderboardWidget() {
           fontSize: 18,
           fontWeight: "700",
           marginBottom: 10,
-          color: "#000",
+          color: themeColors.text,
         }}
       >
         Live Leaderboard
       </Text>
 
-      {loading && <ActivityIndicator size="small" color="#000" />}
+      {loading && <ActivityIndicator size="small" color={themeColors.tint} />}
 
       {!loading && tournamentId && players.length > 0 && (
         <>
@@ -178,7 +181,7 @@ export default function LeaderboardWidget() {
               justifyContent: "flex-end",
               paddingBottom: 6,
               borderBottomWidth: 1,
-              borderColor: "#eee",
+              borderColor: themeColors.border,
             }}
           >
             <Text
@@ -186,7 +189,7 @@ export default function LeaderboardWidget() {
                 width: 40,
                 textAlign: "center",
                 fontWeight: "600",
-                color: "#555",
+                color: themeColors.text + "99",
               }}
             >
               R{currentRound}
@@ -196,7 +199,7 @@ export default function LeaderboardWidget() {
                 width: 70,
                 textAlign: "center",
                 fontWeight: "600",
-                color: "#555",
+                color: themeColors.text + "99",
               }}
             >
               THRU
@@ -206,7 +209,7 @@ export default function LeaderboardWidget() {
                 width: 40,
                 textAlign: "center",
                 fontWeight: "600",
-                color: "#555",
+                color: themeColors.text + "99",
               }}
             >
               TOT
@@ -228,10 +231,16 @@ export default function LeaderboardWidget() {
                   justifyContent: "space-between",
                   paddingVertical: 8,
                   borderBottomWidth: 0.5,
-                  borderColor: "#eee",
+                  borderColor: themeColors.border,
                 }}
               >
-                <Text style={{ fontSize: 16, color: "#000", flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: themeColors.text,
+                    flex: 1,
+                  }}
+                >
                   {p.rank}. {p.name}
                 </Text>
 
@@ -240,7 +249,7 @@ export default function LeaderboardWidget() {
                     width: 40,
                     textAlign: "center",
                     fontSize: 16,
-                    color: "#000",
+                    color: themeColors.text,
                   }}
                 >
                   {formatToPar(p.today)}
@@ -251,7 +260,7 @@ export default function LeaderboardWidget() {
                     width: 70,
                     textAlign: "center",
                     fontSize: 16,
-                    color: "#000",
+                    color: themeColors.text,
                   }}
                 >
                   {thruDisplay}
@@ -262,7 +271,7 @@ export default function LeaderboardWidget() {
                     width: 40,
                     textAlign: "center",
                     fontSize: 16,
-                    color: "#000",
+                    color: themeColors.text,
                   }}
                 >
                   {formatToPar(p.toPar)}
@@ -275,7 +284,7 @@ export default function LeaderboardWidget() {
 
       {/* No tournament at all */}
       {!loading && !tournamentId && (
-        <Text style={{ color: "#555", marginTop: 4 }}>
+        <Text style={{ color: themeColors.text + "99", marginTop: 4 }}>
           Leaderboard will appear when tee times are posted.
         </Text>
       )}
@@ -285,14 +294,19 @@ export default function LeaderboardWidget() {
         onPressIn={() => router.push("/pga-leaderboard")}
         style={{
           marginTop: 12,
-          backgroundColor: "#0E734A",
+          backgroundColor: themeColors.tint,
           paddingHorizontal: 14,
           paddingVertical: 8,
           borderRadius: 6,
           alignSelf: "flex-start",
         }}
       >
-        <Text style={{ color: "#fff", fontWeight: "600" }}>
+        <Text
+          style={{
+            color: themeColors.background,
+            fontWeight: "600",
+          }}
+        >
           View Full Leaderboard
         </Text>
       </Pressable>

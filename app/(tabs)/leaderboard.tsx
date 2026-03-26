@@ -1,5 +1,5 @@
-// app/(tabs)/leaderboard.tsx
 import { getActiveTournament, getProjectedSeasonStandings } from '@/api';
+import { useTheme } from "@/app/providers/ThemeProvider";
 import supabase from '@/supabase';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -24,6 +24,7 @@ type LeaderboardUser = {
 
 export default function LeaderboardScreen() {
   const router = useRouter();
+  const { themeColors } = useTheme();
 
   const [activeTab, setActiveTab] = useState<'global' | 'league'>('global');
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
@@ -197,41 +198,48 @@ export default function LeaderboardScreen() {
 
   function renderMovementArrow(movement: number) {
     if (movement > 0) {
-      return <Text style={{ color: "green", fontWeight: "bold" }}>↑{movement}</Text>;
+      return <Text style={{ color: themeColors.tint, fontWeight: "bold" }}>↑{movement}</Text>;
     }
     if (movement < 0) {
-      return <Text style={{ color: "red", fontWeight: "bold" }}>↓{Math.abs(movement)}</Text>;
+      return <Text style={{ color: "#ff4d4d", fontWeight: "bold" }}>↓{Math.abs(movement)}</Text>;
     }
-    return <Text style={{ color: "#999" }}>–</Text>;
+    return <Text style={{ color: themeColors.text + "66" }}>–</Text>;
   }
 
   const dataToRender = showProjected ? projected : leaderboard;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      {/* MAIN CONTENT */}
-      <View style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
+      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
 
         {/* Tabs */}
         <View style={styles.tabs}>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'global' && styles.activeTab]}
+            style={[
+              styles.tabButton,
+              { borderBottomColor: themeColors.border },
+              activeTab === 'global' && { borderBottomColor: themeColors.tint }
+            ]}
             onPress={() => {
               setShowProjected(false);
               setActiveTab('global');
             }}
           >
-            <Text style={styles.tabText}>Global</Text>
+            <Text style={[styles.tabText, { color: themeColors.text }]}>Global</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'league' && styles.activeTab]}
+            style={[
+              styles.tabButton,
+              { borderBottomColor: themeColors.border },
+              activeTab === 'league' && { borderBottomColor: themeColors.tint }
+            ]}
             onPress={() => {
               setShowProjected(false);
               setActiveTab('league');
             }}
           >
-            <Text style={styles.tabText}>League</Text>
+            <Text style={[styles.tabText, { color: themeColors.text }]}>League</Text>
           </TouchableOpacity>
         </View>
 
@@ -246,11 +254,10 @@ export default function LeaderboardScreen() {
                 marginBottom: 12,
               }}
             >
-              <Text style={{ fontSize: 20, fontWeight: '700' }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: themeColors.text }}>
                 {leagueName || 'League'}
               </Text>
 
-              {/* UPDATED SETTINGS ICON */}
               <TouchableOpacity
                 onPress={() => setShowSettings(true)}
                 style={{ padding: 6 }}
@@ -260,6 +267,7 @@ export default function LeaderboardScreen() {
                   style={{
                     width: 22,
                     height: 22,
+                    tintColor: themeColors.text,
                     resizeMode: 'contain',
                   }}
                 />
@@ -276,13 +284,15 @@ export default function LeaderboardScreen() {
               style={{
                 paddingVertical: 8,
                 paddingHorizontal: 12,
-                backgroundColor: '#eee',
+                backgroundColor: themeColors.card,
                 borderRadius: 8,
                 alignSelf: 'flex-start',
                 marginBottom: 12,
+                borderWidth: 1,
+                borderColor: themeColors.border,
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600' }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: themeColors.text }}>
                 {showProjected ? 'Showing: Projected' : 'Showing: Live'}
               </Text>
             </TouchableOpacity>
@@ -291,7 +301,9 @@ export default function LeaderboardScreen() {
 
         {/* Leaderboard */}
         {loading ? (
-          <Text style={{ marginTop: 16 }}>Loading leaderboard...</Text>
+          <Text style={{ marginTop: 16, color: themeColors.text + "99" }}>
+            Loading leaderboard...
+          </Text>
         ) : (
           <FlatList
             data={dataToRender}
@@ -303,10 +315,24 @@ export default function LeaderboardScreen() {
                 item.team_name || item.name || item.email || 'Unknown User';
 
               return (
-                <View style={[styles.row, isCurrentUser && styles.currentUserRow]}>
-                  <Text style={styles.rank}>{index + 1}</Text>
+                <View
+                  style={[
+                    styles.row,
+                    {
+                      borderColor: themeColors.border,
+                      backgroundColor: isCurrentUser
+                        ? themeColors.tint + "22"
+                        : themeColors.background,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.rank, { color: themeColors.text }]}>
+                    {index + 1}
+                  </Text>
 
-                  <Text style={styles.username}>{displayName}</Text>
+                  <Text style={[styles.username, { color: themeColors.text }]}>
+                    {displayName}
+                  </Text>
 
                   {showProjected && (
                     <View style={{ width: 40, alignItems: "center" }}>
@@ -314,7 +340,9 @@ export default function LeaderboardScreen() {
                     </View>
                   )}
 
-                  <Text style={styles.points}>{item.total_points}</Text>
+                  <Text style={[styles.points, { color: themeColors.text }]}>
+                    {item.total_points}
+                  </Text>
                 </View>
               );
             }}
@@ -325,8 +353,13 @@ export default function LeaderboardScreen() {
       {/* SETTINGS MODAL */}
       {showSettings && (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12 }}>
+          <View
+            style={[
+              styles.modalBox,
+              { backgroundColor: themeColors.card, borderColor: themeColors.border },
+            ]}
+          >
+            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12, color: themeColors.text }}>
               League Settings
             </Text>
 
@@ -335,16 +368,23 @@ export default function LeaderboardScreen() {
                 setShowSettings(false);
                 setShowCodeModal(true);
               }}
-              style={styles.modalButton}
+              style={[styles.modalButton, { backgroundColor: themeColors.tint }]}
             >
-              <Text style={styles.modalButtonText}>View Invite Code</Text>
+              <Text style={[styles.modalButtonText, { color: themeColors.background }]}>
+                View Invite Code
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setShowSettings(false)}
-              style={[styles.modalButton, { backgroundColor: "#eee" }]}
+              style={[
+                styles.modalButton,
+                { backgroundColor: themeColors.border },
+              ]}
             >
-              <Text style={[styles.modalButtonText, { color: "#333" }]}>Close</Text>
+              <Text style={[styles.modalButtonText, { color: themeColors.text }]}>
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -353,20 +393,30 @@ export default function LeaderboardScreen() {
       {/* INVITE CODE MODAL */}
       {showCodeModal && (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12 }}>
+          <View
+            style={[
+              styles.modalBox,
+              { backgroundColor: themeColors.card, borderColor: themeColors.border },
+            ]}
+          >
+            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12, color: themeColors.text }}>
               Invite Code
             </Text>
 
-            <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 20 }}>
+            <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 20, color: themeColors.text }}>
               {inviteCode}
             </Text>
 
             <TouchableOpacity
               onPress={() => setShowCodeModal(false)}
-              style={[styles.modalButton, { backgroundColor: "#eee" }]}
+              style={[
+                styles.modalButton,
+                { backgroundColor: themeColors.border },
+              ]}
             >
-              <Text style={[styles.modalButtonText, { color: "#333" }]}>Close</Text>
+              <Text style={[styles.modalButtonText, { color: themeColors.text }]}>
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -384,18 +434,14 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
     borderBottomWidth: 2,
-    borderBottomColor: '#ddd',
   },
-  activeTab: { borderBottomColor: '#0E734A' },
   tabText: { fontSize: 16, fontWeight: 'bold' },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderColor: '#ddd',
   },
-  currentUserRow: { backgroundColor: '#e0f7fa' },
   rank: { width: 30, fontWeight: 'bold' },
   username: { flex: 1 },
   points: { fontWeight: 'bold' },
@@ -410,20 +456,18 @@ const styles = StyleSheet.create({
   },
   modalBox: {
     width: "80%",
-    backgroundColor: "#fff",
     padding: 20,
     borderRadius: 12,
     alignItems: "center",
+    borderWidth: 1,
   },
   modalButton: {
     width: "100%",
     paddingVertical: 12,
-    backgroundColor: "#0E734A",
     borderRadius: 8,
     marginTop: 10,
   },
   modalButtonText: {
-    color: "#fff",
     fontSize: 16,
     fontWeight: "600",
     textAlign: "center",

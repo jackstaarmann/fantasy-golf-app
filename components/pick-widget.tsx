@@ -1,3 +1,4 @@
+import { useTheme } from "@/app/providers/ThemeProvider";
 import { useEffect, useMemo, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
@@ -10,7 +11,7 @@ type LeaderboardPlayer = {
   toPar: number | null;
   thru: number | null;
   teeTime?: string | null;
-  projected_earnings: number;   // ⭐ NEW
+  projected_earnings: number;
 };
 
 type Tournament = {
@@ -156,6 +157,8 @@ export default function PickWidget({
   leaderboard: LeaderboardPlayer[];
   tournament: Tournament | null;
 }) {
+  const { themeColors } = useTheme();
+
   const [profile, setProfile] = useState<{ headshot: string | null; flag: string | null }>({
     headshot: null,
     flag: null,
@@ -168,8 +171,15 @@ export default function PickWidget({
 
   if (!golferId) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.noPick}>No pick yet</Text>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: themeColors.card, borderColor: themeColors.border },
+        ]}
+      >
+        <Text style={[styles.noPick, { color: themeColors.text + "99" }]}>
+          No pick yet
+        </Text>
       </View>
     );
   }
@@ -181,22 +191,32 @@ export default function PickWidget({
 
   if (!golfer) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.noPick}>Golfer not found</Text>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: themeColors.card, borderColor: themeColors.border },
+        ]}
+      >
+        <Text style={[styles.noPick, { color: themeColors.text + "99" }]}>
+          Golfer not found
+        </Text>
       </View>
     );
   }
 
   const displayRank = golfer.rank ?? "--";
-
-  // ⭐ Use backend-provided projected earnings
   const projected = golfer.projected_earnings ?? 0;
 
   const toParDisplay = formatToPar(golfer.toPar);
   const thruDisplay = formatThru(golfer.thru, golfer.teeTime);
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: themeColors.card, borderColor: themeColors.border },
+      ]}
+    >
       <View style={styles.leftColumn}>
         <Image
           source={profile.headshot ? { uri: profile.headshot } : placeholder}
@@ -206,23 +226,36 @@ export default function PickWidget({
         {profile.flag ? (
           <Image source={{ uri: profile.flag }} style={styles.flag} />
         ) : (
-          <View style={styles.flagPlaceholder} />
+          <View
+            style={[
+              styles.flagPlaceholder,
+              { backgroundColor: themeColors.border },
+            ]}
+          />
         )}
       </View>
 
       <View style={styles.rightColumn}>
         <View style={styles.row}>
-          <Text style={styles.name}>{golfer.name}</Text>
-          <Text style={styles.rank}>{displayRank}</Text>
+          <Text style={[styles.name, { color: themeColors.text }]}>
+            {golfer.name}
+          </Text>
+          <Text style={[styles.rank, { color: themeColors.tint }]}>
+            {displayRank}
+          </Text>
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.sub}>To Par: {toParDisplay}</Text>
-          <Text style={styles.sub}>{thruDisplay}</Text>
+          <Text style={[styles.sub, { color: themeColors.text + "99" }]}>
+            To Par: {toParDisplay}
+          </Text>
+          <Text style={[styles.sub, { color: themeColors.text + "99" }]}>
+            {thruDisplay}
+          </Text>
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.projected}>
+          <Text style={[styles.projected, { color: themeColors.tint }]}>
             Projected: ${projected.toLocaleString()}
           </Text>
         </View>
@@ -240,8 +273,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 14,
     borderRadius: 12,
-    backgroundColor: "#fff",
-    borderColor: "#e0e0e0",
     borderWidth: 1,
     marginBottom: 12,
   },
@@ -265,7 +296,6 @@ const styles = StyleSheet.create({
     width: 28,
     height: 18,
     borderRadius: 3,
-    backgroundColor: "#ddd",
   },
   rightColumn: {
     flex: 1,
@@ -282,21 +312,17 @@ const styles = StyleSheet.create({
   rank: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#007aff",
   },
   sub: {
     fontSize: 14,
-    color: "#666",
   },
   projected: {
     marginTop: 6,
     fontSize: 15,
     fontWeight: "600",
-    color: "#0a7",
   },
   noPick: {
     fontSize: 16,
-    color: "#666",
     fontStyle: "italic",
   },
 });

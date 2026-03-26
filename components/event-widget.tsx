@@ -1,6 +1,7 @@
 // --- imports ---
 import type { LeaderboardPlayer } from "@/api";
 import { fetchAthlete, fetchEventMeta, fetchLeaderboard } from "@/api";
+import { useTheme } from "@/app/providers/ThemeProvider";
 import supabase from "@/supabase";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -9,7 +10,7 @@ import {
   Image,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 function getNextTuesdayAt3AMET(): Date {
@@ -56,6 +57,7 @@ type LeaderInfo = {
 
 export default function HomeEventWidget() {
   const router = useRouter();
+  const { themeColors } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
@@ -167,7 +169,7 @@ export default function HomeEventWidget() {
   }
 
   // ---------------------------
-  // LOAD LEADER / DEFENDING CHAMP
+  // LOAD CURRENT LEADER
   // ---------------------------
   useEffect(() => {
     if (!event) return;
@@ -177,16 +179,13 @@ export default function HomeEventWidget() {
     } else if (event.linger_window) {
       loadCurrentLeader(event);
     } else if (event.up_next) {
-      loadDefendingChampion(event); // show defending champ
-      loadTeeTimeOnly(event);       // fetch tee time without overwriting champ
+      loadDefendingChampion(event);
+      loadTeeTimeOnly(event);
     } else if (event.is_completed) {
       loadCurrentLeader(event);
     }
   }, [event]);
 
-  // ---------------------------
-  // LOAD CURRENT LEADER
-  // ---------------------------
   async function loadCurrentLeader(activeEvent: any) {
     try {
       const leaderboard = await fetchLeaderboard(Number(activeEvent.id));
@@ -201,7 +200,8 @@ export default function HomeEventWidget() {
           ? tiedLeaders.sort((a, b) => {
               if (!a.teeTime || !b.teeTime) return 0;
               return (
-                new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime()
+                new Date(a.teeTime).getTime() -
+                new Date(b.teeTime).getTime()
               );
             })[0]
           : leaderboard[0];
@@ -235,10 +235,14 @@ export default function HomeEventWidget() {
       if (!leaderboard || leaderboard.length === 0) return;
 
       const sorted = leaderboard
-        .filter((p): p is LeaderboardPlayer & { teeTime: string } => p.teeTime !== null)
+        .filter(
+          (p): p is LeaderboardPlayer & { teeTime: string } =>
+            p.teeTime !== null
+        )
         .sort(
           (a, b) =>
-            new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime()
+            new Date(a.teeTime).getTime() -
+            new Date(b.teeTime).getTime()
         );
 
       const earliest = sorted[0];
@@ -315,7 +319,7 @@ export default function HomeEventWidget() {
   if (loading) {
     return (
       <View style={{ padding: 16 }}>
-        <ActivityIndicator size="small" color="#000" />
+        <ActivityIndicator size="small" color={themeColors.tint} />
       </View>
     );
   }
@@ -326,16 +330,27 @@ export default function HomeEventWidget() {
         style={{
           padding: 16,
           borderRadius: 12,
-          backgroundColor: "#ffffff",
+          backgroundColor: themeColors.card,
           borderWidth: 1,
-          borderColor: "#e0e0e0",
+          borderColor: themeColors.border,
           marginBottom: 16,
         }}
       >
-        <Text style={{ fontSize: 16, fontWeight: "600", color: "#000" }}>
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: "600",
+            color: themeColors.text,
+          }}
+        >
           No Event This Week
         </Text>
-        <Text style={{ marginTop: 4, color: "#555" }}>
+        <Text
+          style={{
+            marginTop: 4,
+            color: themeColors.text + "99",
+          }}
+        >
           Check back soon for the next tournament.
         </Text>
       </View>
@@ -366,9 +381,9 @@ export default function HomeEventWidget() {
       style={{
         padding: 16,
         borderRadius: 12,
-        backgroundColor: "#ffffff",
+        backgroundColor: themeColors.card,
         borderWidth: 1,
-        borderColor: event.in_progress ? "#c8e6c9" : "#e0e0e0",
+        borderColor: themeColors.border,
         marginBottom: 16,
       }}
     >
@@ -397,26 +412,45 @@ export default function HomeEventWidget() {
           }}
         >
           <View>
-            <Text style={{ fontSize: 16, fontWeight: "600", color: "#000" }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "600",
+                color: themeColors.text,
+              }}
+            >
               {event.name}
             </Text>
 
             <Text
-              style={{ marginTop: 4, color: "#0E734A", fontWeight: "600" }}
+              style={{
+                marginTop: 4,
+                color: themeColors.tint,
+                fontWeight: "600",
+              }}
             >
               {statusText}
             </Text>
 
-            {event.up_next && countdown !== "" && (
-              <Text style={{ marginTop: 4, color: "#555" }}>{countdown}</Text>
-            )}
-
-            {event.is_completed && countdown !== "" && (
-              <Text style={{ marginTop: 4, color: "#555" }}>{countdown}</Text>
-            )}
+            {(event.up_next || event.is_completed) &&
+              countdown !== "" && (
+                <Text
+                  style={{
+                    marginTop: 4,
+                    color: themeColors.text + "99",
+                  }}
+                >
+                  {countdown}
+                </Text>
+              )}
 
             {!event.is_completed && (
-              <Text style={{ marginTop: 4, color: "#555" }}>
+              <Text
+                style={{
+                  marginTop: 4,
+                  color: themeColors.text + "99",
+                }}
+              >
                 {userPicks.length === 0
                   ? "You haven't made your pick yet."
                   : "Your picks are locked in."}
@@ -429,7 +463,7 @@ export default function HomeEventWidget() {
             <TouchableOpacity
               onPress={goToPicks}
               style={{
-                backgroundColor: "#0E734A",
+                backgroundColor: themeColors.tint,
                 paddingHorizontal: 14,
                 paddingVertical: 8,
                 borderRadius: 6,
@@ -437,7 +471,12 @@ export default function HomeEventWidget() {
                 marginTop: 12,
               }}
             >
-              <Text style={{ color: "#fff", fontWeight: "600" }}>
+              <Text
+                style={{
+                  color: themeColors.background,
+                  fontWeight: "600",
+                }}
+              >
                 {userPicks.length === 0 ? "Make Picks" : "Go to Picks"}
               </Text>
             </TouchableOpacity>
@@ -484,7 +523,7 @@ export default function HomeEventWidget() {
               style={{
                 fontSize: 12,
                 fontWeight: "600",
-                color: "#000",
+                color: themeColors.text,
                 textAlign: "center",
                 marginTop: 4,
               }}
@@ -496,7 +535,7 @@ export default function HomeEventWidget() {
             <Text
               style={{
                 fontSize: 11,
-                color: "#000000",
+                color: themeColors.text + "99",
                 textAlign: "center",
                 marginTop: 2,
               }}

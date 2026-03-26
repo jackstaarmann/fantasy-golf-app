@@ -1,12 +1,13 @@
 import type { LeaderboardPlayer } from "@/api";
 import { usePickSummary } from "@/api";
+import { useTheme } from "@/app/providers/ThemeProvider";
 import { useState } from "react";
 import {
   ActivityIndicator,
   Modal,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 type Props = {
@@ -14,7 +15,7 @@ type Props = {
   inLeague: boolean;
   leagueId?: string | null;
   leaderboard: LeaderboardPlayer[];
-  isOpenForPicks: boolean; // ⭐ NEW
+  isOpenForPicks: boolean;
 };
 
 type PickSummaryItem = {
@@ -30,8 +31,10 @@ export function PickSummaryWidget({
   inLeague,
   leagueId,
   leaderboard,
-  isOpenForPicks, // ⭐ NEW
+  isOpenForPicks,
 }: Props) {
+  const { themeColors } = useTheme();
+
   const [mode, setMode] = useState<"league" | "global">(
     inLeague ? "league" : "global"
   );
@@ -80,9 +83,9 @@ export function PickSummaryWidget({
           marginTop: 20,
           padding: 16,
           borderRadius: 12,
-          backgroundColor: "#fff",
+          backgroundColor: themeColors.card,
           borderWidth: 1,
-          borderColor: "#e0e0e0",
+          borderColor: themeColors.border,
           alignItems: "center",
         }}
       >
@@ -92,23 +95,31 @@ export function PickSummaryWidget({
             width: 44,
             height: 44,
             borderRadius: 22,
-            backgroundColor: "#e0e0e0",
+            backgroundColor: themeColors.border,
             justifyContent: "center",
             alignItems: "center",
             marginBottom: 10,
           }}
         >
-          <Text style={{ fontSize: 24, color: "#555" }}>🔒</Text>
+          <Text style={{ fontSize: 24, color: themeColors.text + "99" }}>
+            🔒
+          </Text>
         </View>
 
-        <Text style={{ fontSize: 18, fontWeight: "600", color: "#000" }}>
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: "600",
+            color: themeColors.text,
+          }}
+        >
           Pick Trends Locked
         </Text>
 
         <Text
           style={{
             marginTop: 6,
-            color: "#555",
+            color: themeColors.text + "99",
             textAlign: "center",
             fontSize: 14,
           }}
@@ -128,12 +139,9 @@ export function PickSummaryWidget({
         marginTop: 20,
         padding: 16,
         borderRadius: 12,
-        backgroundColor: "#fff",
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 6,
+        backgroundColor: themeColors.card,
         borderWidth: 1,
-        borderColor: "#e0e0e0",
+        borderColor: themeColors.border,
       }}
     >
       {/* Header */}
@@ -144,13 +152,15 @@ export function PickSummaryWidget({
           marginBottom: 12,
         }}
       >
-        <Text style={{ fontSize: 18, fontWeight: "600" }}>Pick Trends</Text>
+        <Text style={{ fontSize: 18, fontWeight: "600", color: themeColors.text }}>
+          Pick Trends
+        </Text>
 
         {/* Toggle */}
         <View
           style={{
             flexDirection: "row",
-            backgroundColor: "#e0e0e0",
+            backgroundColor: themeColors.border,
             borderRadius: 8,
           }}
         >
@@ -160,12 +170,20 @@ export function PickSummaryWidget({
             style={{
               paddingVertical: 6,
               paddingHorizontal: 12,
-              backgroundColor: mode === "league" ? "#000" : "transparent",
+              backgroundColor:
+                mode === "league" ? themeColors.tint : "transparent",
               borderRadius: 8,
               opacity: inLeague ? 1 : 0.4,
             }}
           >
-            <Text style={{ color: mode === "league" ? "#fff" : "#555" }}>
+            <Text
+              style={{
+                color:
+                  mode === "league"
+                    ? themeColors.background
+                    : themeColors.text + "99",
+              }}
+            >
               League
             </Text>
           </TouchableOpacity>
@@ -175,11 +193,19 @@ export function PickSummaryWidget({
             style={{
               paddingVertical: 6,
               paddingHorizontal: 12,
-              backgroundColor: mode === "global" ? "#000" : "transparent",
+              backgroundColor:
+                mode === "global" ? themeColors.tint : "transparent",
               borderRadius: 8,
             }}
           >
-            <Text style={{ color: mode === "global" ? "#fff" : "#555" }}>
+            <Text
+              style={{
+                color:
+                  mode === "global"
+                    ? themeColors.background
+                    : themeColors.text + "99",
+              }}
+            >
               Global
             </Text>
           </TouchableOpacity>
@@ -189,13 +215,13 @@ export function PickSummaryWidget({
       {/* Loading */}
       {loading && (
         <View style={{ paddingVertical: 20 }}>
-          <ActivityIndicator />
+          <ActivityIndicator color={themeColors.tint} />
         </View>
       )}
 
       {/* No picks */}
       {!loading && !hasData && (
-        <Text style={{ color: "#777" }}>No picks yet.</Text>
+        <Text style={{ color: themeColors.text + "99" }}>No picks yet.</Text>
       )}
 
       {/* Chalk Meter */}
@@ -208,7 +234,7 @@ export function PickSummaryWidget({
               marginBottom: 6,
             }}
           >
-            <Text style={{ fontWeight: "500", marginRight: 6 }}>
+            <Text style={{ fontWeight: "500", marginRight: 6, color: themeColors.text }}>
               Chalk Meter
             </Text>
 
@@ -220,12 +246,14 @@ export function PickSummaryWidget({
                   height: 18,
                   borderRadius: 9,
                   borderWidth: 1,
-                  borderColor: "#555",
+                  borderColor: themeColors.text + "99",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <Text style={{ fontSize: 12, color: "#555" }}>i</Text>
+                <Text style={{ fontSize: 12, color: themeColors.text + "99" }}>
+                  i
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -233,7 +261,7 @@ export function PickSummaryWidget({
           <View
             style={{
               height: 8,
-              backgroundColor: "#e0e0e0",
+              backgroundColor: themeColors.border,
               borderRadius: 4,
               overflow: "hidden",
             }}
@@ -242,7 +270,7 @@ export function PickSummaryWidget({
               style={{
                 height: 8,
                 width: `${(data.chalkScore ?? 0) * 100}%`,
-                backgroundColor: "#4CAF50",
+                backgroundColor: themeColors.tint,
               }}
             />
           </View>
@@ -261,7 +289,7 @@ export function PickSummaryWidget({
           onPress={() => setInfoVisible(false)}
           style={{
             flex: 1,
-            backgroundColor: "rgba(0,0,0,0.3)",
+            backgroundColor: "rgba(0,0,0,0.4)",
             justifyContent: "center",
             alignItems: "center",
             padding: 20,
@@ -269,18 +297,25 @@ export function PickSummaryWidget({
         >
           <View
             style={{
-              backgroundColor: "#fff",
+              backgroundColor: themeColors.card,
               padding: 20,
               borderRadius: 12,
               maxWidth: 300,
               borderWidth: 1,
-              borderColor: "#e0e0e0",
+              borderColor: themeColors.border,
             }}
           >
-            <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "600",
+                marginBottom: 8,
+                color: themeColors.text,
+              }}
+            >
               Chalk Meter
             </Text>
-            <Text style={{ fontSize: 14, color: "#555" }}>
+            <Text style={{ fontSize: 14, color: themeColors.text + "99" }}>
               The Chalk Meter shows how concentrated the picks are this week.
               A longer bar means more people picked the same golfer.
             </Text>
@@ -298,18 +333,20 @@ export function PickSummaryWidget({
               paddingVertical: 10,
               borderBottomWidth:
                 idx === topPicksWithEarnings.length - 1 ? 0 : 1,
-              borderColor: "#e0e0e0",
+              borderColor: themeColors.border,
               flexDirection: "row",
               justifyContent: "space-between",
             }}
           >
-            <Text style={{ fontSize: 16 }}>{p.name}</Text>
+            <Text style={{ fontSize: 16, color: themeColors.text }}>
+              {p.name}
+            </Text>
 
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontSize: 14 }}>
+              <Text style={{ fontSize: 14, color: themeColors.text }}>
                 {(p.pickRate * 100).toFixed(1)}%
               </Text>
-              <Text style={{ fontSize: 12, color: "#777" }}>
+              <Text style={{ fontSize: 12, color: themeColors.text + "99" }}>
                 ${Math.round(p.projectedEarnings).toLocaleString()}
               </Text>
             </View>
@@ -322,20 +359,21 @@ export function PickSummaryWidget({
           style={{
             marginTop: 16,
             padding: 12,
-            backgroundColor: "#f7f7f7",
+            backgroundColor: themeColors.background,
             borderRadius: 8,
             borderWidth: 1,
-            borderColor: "#e0e0e0",
+            borderColor: themeColors.border,
           }}
         >
-          <Text style={{ fontWeight: "600" }}>Your Pick</Text>
-          <Text style={{ marginTop: 4 }}>
+          <Text style={{ fontWeight: "600", color: themeColors.text }}>
+            Your Pick
+          </Text>
+          <Text style={{ marginTop: 4, color: themeColors.text }}>
             Pick Rate: {(yourPickWithEarnings.pickRate * 100).toFixed(1)}% •
             Rank {yourPickWithEarnings.rank}
           </Text>
-          <Text style={{ marginTop: 4, color: "#777" }}>
-            Earnings: $
-            {yourPickWithEarnings.projectedEarnings.toLocaleString()}
+          <Text style={{ marginTop: 4, color: themeColors.text + "99" }}>
+            Earnings: ${yourPickWithEarnings.projectedEarnings.toLocaleString()}
           </Text>
         </View>
       )}

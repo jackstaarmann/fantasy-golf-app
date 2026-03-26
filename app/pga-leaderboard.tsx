@@ -3,6 +3,7 @@ import {
   type LeaderboardPlayer,
 } from "@/api";
 import { useAuth } from "@/app/providers/AuthProvider";
+import { useTheme } from "@/app/providers/ThemeProvider";
 import { formatTimeWithTimezone } from "@/components/utils/time";
 import supabase from "@/supabase";
 import { useFocusEffect } from "@react-navigation/native";
@@ -13,7 +14,7 @@ import {
   FlatList,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -21,6 +22,8 @@ export default function PGALeaderboard() {
   const router = useRouter();
   const { session } = useAuth();
   const user = session?.user ?? null;
+
+  const { themeColors } = useTheme();
 
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,8 +33,14 @@ export default function PGALeaderboard() {
 
   if (!user) {
     return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center", backgroundColor: "#fff" }}>
-        <ActivityIndicator size="large" />
+      <SafeAreaView
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          backgroundColor: themeColors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={themeColors.tint} />
       </SafeAreaView>
     );
   }
@@ -127,8 +136,14 @@ export default function PGALeaderboard() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center", backgroundColor: "#fff" }}>
-        <ActivityIndicator size="large" />
+      <SafeAreaView
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          backgroundColor: themeColors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={themeColors.tint} />
       </SafeAreaView>
     );
   }
@@ -146,7 +161,7 @@ export default function PGALeaderboard() {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
       {/* Header */}
       <View
         style={{
@@ -155,16 +170,31 @@ export default function PGALeaderboard() {
           flexDirection: "row",
           alignItems: "center",
           borderBottomWidth: 1,
-          borderColor: "#eee",
+          borderColor: themeColors.border,
         }}
       >
-        <TouchableOpacity onPress={() => router.back()} style={{ paddingRight: 16 }}>
-          <Text style={{ fontSize: 18, color: "#0E734A", fontWeight: "600" }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ paddingRight: 16 }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              color: themeColors.tint,
+              fontWeight: "600",
+            }}
+          >
             ← Back
           </Text>
         </TouchableOpacity>
 
-        <Text style={{ fontSize: 20, fontWeight: "700", color: "#000" }}>
+        <Text
+          style={{
+            fontSize: 20,
+            fontWeight: "700",
+            color: themeColors.text,
+          }}
+        >
           {tournamentName}
         </Text>
       </View>
@@ -177,16 +207,37 @@ export default function PGALeaderboard() {
           paddingVertical: 10,
           paddingRight: 16,
           borderBottomWidth: 1,
-          borderColor: "#eee",
+          borderColor: themeColors.border,
         }}
       >
-        <Text style={{ width: 40, textAlign: "center", fontWeight: "600", color: "#555" }}>
+        <Text
+          style={{
+            width: 40,
+            textAlign: "center",
+            fontWeight: "600",
+            color: themeColors.text + "99",
+          }}
+        >
           R{currentRound}
         </Text>
-        <Text style={{ width: 70, textAlign: "center", fontWeight: "600", color: "#555" }}>
+        <Text
+          style={{
+            width: 70,
+            textAlign: "center",
+            fontWeight: "600",
+            color: themeColors.text + "99",
+          }}
+        >
           THRU
         </Text>
-        <Text style={{ width: 40, textAlign: "center", fontWeight: "600", color: "#555" }}>
+        <Text
+          style={{
+            width: 40,
+            textAlign: "center",
+            fontWeight: "600",
+            color: themeColors.text + "99",
+          }}
+        >
           TOT
         </Text>
       </View>
@@ -203,8 +254,8 @@ export default function PGALeaderboard() {
                 style={{
                   paddingVertical: 10,
                   borderBottomWidth: 1,
-                  borderColor: "#ddd",
-                  backgroundColor: "#f9f9f9",
+                  borderColor: themeColors.border,
+                  backgroundColor: themeColors.card,
                 }}
               >
                 <Text
@@ -212,7 +263,7 @@ export default function PGALeaderboard() {
                     textAlign: "center",
                     fontSize: 16,
                     fontWeight: "700",
-                    color: "#444",
+                    color: themeColors.text,
                   }}
                 >
                   CUT
@@ -237,22 +288,49 @@ export default function PGALeaderboard() {
                 paddingVertical: 12,
                 paddingHorizontal: 16,
                 borderBottomWidth: 1,
-                borderColor: "#eee",
+                borderColor: themeColors.border,
               }}
             >
-              <Text style={{ fontSize: 16, color: "#000", flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  color: themeColors.text,
+                  flex: 1,
+                }}
+              >
                 {item.rank}. {item.name}
               </Text>
 
-              <Text style={{ width: 40, textAlign: "center", fontSize: 16, color: "#000" }}>
+              <Text
+                style={{
+                  width: 40,
+                  textAlign: "center",
+                  fontSize: 16,
+                  color: themeColors.text,
+                }}
+              >
                 {isCut ? "-" : formatToPar(item.today)}
               </Text>
 
-              <Text style={{ width: 70, textAlign: "center", fontSize: 16, color: "#000" }}>
+              <Text
+                style={{
+                  width: 70,
+                  textAlign: "center",
+                  fontSize: 16,
+                  color: themeColors.text,
+                }}
+              >
                 {thruDisplay}
               </Text>
 
-              <Text style={{ width: 40, textAlign: "center", fontSize: 16, color: "#000" }}>
+              <Text
+                style={{
+                  width: 40,
+                  textAlign: "center",
+                  fontSize: 16,
+                  color: themeColors.text,
+                }}
+              >
                 {formatToPar(item.toPar)}
               </Text>
             </View>

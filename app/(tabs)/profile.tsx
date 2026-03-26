@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -7,11 +8,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../providers/AuthProvider';
 
-// Timezone list (uses Intl if available)
+// Timezone list
 const TIMEZONES = Intl.supportedValuesOf
   ? Intl.supportedValuesOf('timeZone')
   : [
@@ -28,6 +30,13 @@ export default function ProfileScreen() {
   const { supabase } = useAuth();
   const router = useRouter();
 
+  const systemScheme = useColorScheme();
+  const [themePreference, setThemePreference] = useState<'light' | 'dark' | 'system'>('system');
+
+  const themeColors = Colors[
+    themePreference === 'system' ? systemScheme ?? 'dark' : themePreference
+  ];
+
   const [profile, setProfile] = useState<any>(null);
   const [teamName, setTeamName] = useState('');
   const [timezone, setTimezone] = useState('');
@@ -43,9 +52,7 @@ export default function ProfileScreen() {
   // Load profile
   useEffect(() => {
     const loadProfile = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data } = await supabase
@@ -58,6 +65,7 @@ export default function ProfileScreen() {
         setProfile(data);
         setTeamName(data.team_name || '');
         setTimezone(data.timezone || '');
+        setThemePreference(data.theme_preference || 'system');
       }
 
       setLoading(false);
@@ -66,7 +74,7 @@ export default function ProfileScreen() {
     loadProfile();
   }, []);
 
-  // Save profile with team name uniqueness check
+  // Save profile
   const saveProfile = async () => {
     if (!profile) return;
 
@@ -90,6 +98,7 @@ export default function ProfileScreen() {
       .update({
         team_name: teamName,
         timezone: timezone || null,
+        theme_preference: themePreference,
       })
       .eq('id', profile.id);
 
@@ -109,65 +118,122 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.loadingText}>Loading profile...</Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <Text style={{ color: themeColors.text }}>Loading profile...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Profile</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>Profile</Text>
 
-        <Text style={styles.label}>Email</Text>
-        <Text style={styles.value}>{profile.email}</Text>
+        {/* Email */}
+        <Text style={[styles.label, { color: themeColors.text }]}>Email</Text>
+        <Text style={[styles.value, { color: themeColors.text }]}>{profile.email}</Text>
 
-        <Text style={styles.label}>Team Name</Text>
+        {/* Team Name */}
+        <Text style={[styles.label, { color: themeColors.text }]}>Team Name</Text>
         <TextInput
           style={[
             styles.input,
             {
-              color: '#000',
+              borderColor: themeColors.border,
+              backgroundColor: themeColors.card,
+              color: themeColors.text,
             },
           ]}
           value={teamName}
           onChangeText={setTeamName}
           placeholder="Enter your team name"
-          placeholderTextColor="#00000055"
+          placeholderTextColor={themeColors.text + '55'}
         />
 
-        {/* Timezone Selector */}
-        <Text style={styles.label}>Timezone</Text>
+        {/* Timezone */}
+        <Text style={[styles.label, { color: themeColors.text }]}>Timezone</Text>
 
         <TouchableOpacity
           style={[
             styles.input,
             {
+              borderColor: themeColors.border,
+              backgroundColor: themeColors.card,
               justifyContent: 'center',
             },
           ]}
           onPress={() => setTimezoneModalVisible(true)}
         >
-          <Text style={{ color: timezone ? '#000' : '#00000055' }}>
+          <Text style={{ color: timezone ? themeColors.text : themeColors.text + '55' }}>
             {timezone || 'Select your timezone'}
           </Text>
         </TouchableOpacity>
 
+        {/* Theme Preference */}
+        <Text style={[styles.label, { color: themeColors.text }]}>Theme</Text>
+
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
+          {(['light', 'dark', 'system'] as const).map((opt) => (
+            <TouchableOpacity
+              key={opt}
+              onPress={() => setThemePreference(opt)}
+              style={{
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: themeColors.border,
+                backgroundColor:
+                  themePreference === opt ? themeColors.tint : themeColors.card,
+              }}
+            >
+              <Text
+                style={{
+                  color:
+                    themePreference === opt
+                      ? themeColors.background
+                      : themeColors.text,
+                  fontWeight: '600',
+                }}
+              >
+                {opt.charAt(0).toUpperCase() + opt.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Inline validation */}
         {errorMessage !== '' && (
-          <Text style={styles.inlineError}>{errorMessage}</Text>
+          <Text style={[styles.inlineError, { color: '#FF3B30' }]}>{errorMessage}</Text>
         )}
 
         {successMessage !== '' && (
-          <Text style={styles.inlineSuccess}>{successMessage}</Text>
+          <Text style={[styles.inlineSuccess, { color: themeColors.tint }]}>
+            {successMessage}
+          </Text>
         )}
 
-        <TouchableOpacity style={styles.saveButton} onPress={saveProfile}>
-          <Text style={styles.saveText}>Save Changes</Text>
+        {/* Save */}
+        <TouchableOpacity
+          style={[
+            styles.saveButton,
+            { backgroundColor: themeColors.tint },
+          ]}
+          onPress={saveProfile}
+        >
+          <Text style={[styles.saveText, { color: themeColors.background }]}>
+            Save Changes
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        {/* Logout */}
+        <TouchableOpacity
+          style={[
+            styles.logoutButton,
+            { backgroundColor: '#FF3B30' },
+          ]}
+          onPress={handleLogout}
+        >
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -175,13 +241,27 @@ export default function ProfileScreen() {
       {/* Timezone Modal */}
       {timezoneModalVisible && (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Select Timezone</Text>
+          <View
+            style={[
+              styles.modalContainer,
+              { backgroundColor: themeColors.card, borderColor: themeColors.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: themeColors.text }]}>
+              Select Timezone
+            </Text>
 
             <TextInput
-              style={styles.modalSearch}
+              style={[
+                styles.modalSearch,
+                {
+                  borderColor: themeColors.border,
+                  backgroundColor: themeColors.background,
+                  color: themeColors.text,
+                },
+              ]}
               placeholder="Search..."
-              placeholderTextColor="#00000055"
+              placeholderTextColor={themeColors.text + '55'}
               value={timezoneSearch}
               onChangeText={setTimezoneSearch}
             />
@@ -194,22 +274,32 @@ export default function ProfileScreen() {
                 .map((tz) => (
                   <TouchableOpacity
                     key={tz}
-                    style={styles.modalItem}
+                    style={[
+                      styles.modalItem,
+                      { borderColor: themeColors.border },
+                    ]}
                     onPress={() => {
                       setTimezone(tz);
                       setTimezoneModalVisible(false);
                     }}
                   >
-                    <Text style={styles.modalItemText}>{tz}</Text>
+                    <Text style={[styles.modalItemText, { color: themeColors.text }]}>
+                      {tz}
+                    </Text>
                   </TouchableOpacity>
                 ))}
             </ScrollView>
 
             <TouchableOpacity
-              style={styles.modalClose}
+              style={[
+                styles.modalClose,
+                { backgroundColor: themeColors.tint },
+              ]}
               onPress={() => setTimezoneModalVisible(false)}
             >
-              <Text style={styles.modalCloseText}>Close</Text>
+              <Text style={[styles.modalCloseText, { color: themeColors.background }]}>
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -219,46 +309,34 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-  },
-
-  loadingText: { color: '#000', fontSize: 16 },
+  container: { flex: 1, padding: 20 },
 
   title: {
     fontSize: 32,
     marginBottom: 30,
     fontWeight: 'bold',
-    color: '#000',
   },
 
   label: {
     fontSize: 16,
     marginTop: 15,
-    color: '#000',
   },
 
   value: {
     fontSize: 16,
     marginTop: 5,
     marginBottom: 10,
-    color: '#000',
   },
 
   input: {
     borderWidth: 1,
-    borderColor: '#00000033',
     padding: 12,
     borderRadius: 8,
     marginTop: 5,
     fontSize: 16,
-    backgroundColor: '#FFF',
   },
 
   inlineError: {
-    color: '#FF3B30',
     fontSize: 14,
     textAlign: 'right',
     marginTop: 4,
@@ -266,7 +344,6 @@ const styles = StyleSheet.create({
   },
 
   inlineSuccess: {
-    color: '#4CD964',
     fontSize: 14,
     textAlign: 'right',
     marginTop: 4,
@@ -274,16 +351,14 @@ const styles = StyleSheet.create({
   },
 
   saveButton: {
-    backgroundColor: '#0E734A',
     padding: 14,
     borderRadius: 8,
     marginTop: 30,
     alignItems: 'center',
   },
-  saveText: { color: 'white', fontWeight: '600', fontSize: 16 },
+  saveText: { fontWeight: '600', fontSize: 16 },
 
   logoutButton: {
-    backgroundColor: '#FF3B30',
     padding: 14,
     borderRadius: 8,
     marginTop: 20,
@@ -293,10 +368,7 @@ const styles = StyleSheet.create({
 
   modalOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#00000055',
     justifyContent: 'center',
     alignItems: 'center',
@@ -305,48 +377,41 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '90%',
     height: '70%',
-    backgroundColor: '#FFF',
     borderRadius: 12,
     padding: 20,
+    borderWidth: 1,
   },
 
   modalTitle: {
     fontSize: 20,
     fontWeight: '600',
     marginBottom: 10,
-    color: '#000',
   },
 
   modalSearch: {
     borderWidth: 1,
-    borderColor: '#00000033',
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
-    color: '#000',
   },
 
   modalItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#00000011',
   },
 
   modalItemText: {
     fontSize: 16,
-    color: '#000',
   },
 
   modalClose: {
     marginTop: 10,
     padding: 12,
-    backgroundColor: '#0E734A',
     borderRadius: 8,
     alignItems: 'center',
   },
 
   modalCloseText: {
-    color: '#FFF',
     fontWeight: '600',
     fontSize: 16,
   },

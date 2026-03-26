@@ -1,3 +1,4 @@
+import { useTheme } from "@/app/providers/ThemeProvider";
 import { router } from "expo-router";
 import React from "react";
 import {
@@ -7,7 +8,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 type Article = {
@@ -26,6 +27,8 @@ type NewsResponse = {
 export default function NewsWidget() {
   const [data, setData] = React.useState<NewsResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
+
+  const { themeColors } = useTheme();
 
   React.useEffect(() => {
     const load = async () => {
@@ -51,22 +54,48 @@ export default function NewsWidget() {
 
   if (loading) {
     return (
-      <View style={styles.widget}>
-        <ActivityIndicator size="small" color="#999" />
+      <View
+        style={[
+          styles.widget,
+          {
+            backgroundColor: themeColors.card,
+            borderColor: themeColors.border,
+          },
+        ]}
+      >
+        <ActivityIndicator size="small" color={themeColors.tint} />
       </View>
     );
   }
 
   if (!data || !data.featured) {
     return (
-      <View style={styles.widget}>
-        <Text style={{ color: "#999" }}>No news available</Text>
+      <View
+        style={[
+          styles.widget,
+          {
+            backgroundColor: themeColors.card,
+            borderColor: themeColors.border,
+          },
+        ]}
+      >
+        <Text style={{ color: themeColors.text + "99" }}>
+          No news available
+        </Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.widget}>
+    <View
+      style={[
+        styles.widget,
+        {
+          backgroundColor: themeColors.card,
+          borderColor: themeColors.border,
+        },
+      ]}
+    >
       {/* Featured Article */}
       <TouchableOpacity onPress={() => open(data.featured?.link)}>
         {data.featured.image ? (
@@ -75,13 +104,30 @@ export default function NewsWidget() {
             style={styles.featuredImage}
           />
         ) : (
-          <View style={styles.featuredImageFallback} />
+          <View
+            style={[
+              styles.featuredImageFallback,
+              { backgroundColor: themeColors.border },
+            ]}
+          />
         )}
 
-        <Text style={styles.featuredHeadline}>{data.featured.headline}</Text>
+        <Text
+          style={[
+            styles.featuredHeadline,
+            { color: themeColors.text },
+          ]}
+        >
+          {data.featured.headline}
+        </Text>
 
         {data.featured.description ? (
-          <Text style={styles.featuredDescription}>
+          <Text
+            style={[
+              styles.featuredDescription,
+              { color: themeColors.text + "99" },
+            ]}
+          >
             {data.featured.description}
           </Text>
         ) : null}
@@ -98,10 +144,22 @@ export default function NewsWidget() {
             {a.image ? (
               <Image source={{ uri: a.image }} style={styles.thumb} />
             ) : (
-              <View style={styles.thumbFallback} />
+              <View
+                style={[
+                  styles.thumbFallback,
+                  { backgroundColor: themeColors.border },
+                ]}
+              />
             )}
 
-            <Text style={styles.rowHeadline}>{a.headline}</Text>
+            <Text
+              style={[
+                styles.rowHeadline,
+                { color: themeColors.text },
+              ]}
+            >
+              {a.headline}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -111,7 +169,14 @@ export default function NewsWidget() {
         onPress={() => router.push("/all-news")}
         style={styles.allNewsButton}
       >
-        <Text style={styles.allNewsText}>More News →</Text>
+        <Text
+          style={[
+            styles.allNewsText,
+            { color: themeColors.tint },
+          ]}
+        >
+          More News →
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -120,11 +185,9 @@ export default function NewsWidget() {
 const styles = StyleSheet.create({
   widget: {
     borderWidth: 1,
-    borderColor: "#e5e5e5",
     borderRadius: 12,
     padding: 16,
     marginTop: 20,
-    backgroundColor: "#fff",
   },
   featuredImage: {
     width: "100%",
@@ -137,7 +200,6 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 12,
     marginBottom: 8,
-    backgroundColor: "#f0f0f0",
   },
   featuredHeadline: {
     fontSize: 18,
@@ -146,7 +208,6 @@ const styles = StyleSheet.create({
   },
   featuredDescription: {
     fontSize: 14,
-    color: "#666",
   },
   row: {
     flexDirection: "row",
@@ -162,7 +223,6 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 8,
-    backgroundColor: "#f0f0f0",
   },
   rowHeadline: {
     flex: 1,
@@ -176,6 +236,5 @@ const styles = StyleSheet.create({
   allNewsText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#0E734A",
   },
 });

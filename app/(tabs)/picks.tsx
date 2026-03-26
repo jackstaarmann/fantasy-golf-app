@@ -1,3 +1,4 @@
+import { useTheme } from "@/app/providers/ThemeProvider";
 import supabase from '@/supabase';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -8,7 +9,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -43,6 +44,8 @@ type Tournament = {
 };
 
 export default function PicksScreen() {
+  const { themeColors } = useTheme();
+
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [tournament, setTournament] = useState<Tournament | null>(null);
 
@@ -82,23 +85,19 @@ export default function PicksScreen() {
 
       let activeEvent: Tournament | null = null;
 
-      // 1️⃣ In Progress
       const inProgress = data.find(t => t.in_progress === true);
       if (inProgress) activeEvent = inProgress;
 
-      // 2️⃣ Linger Window
       if (!activeEvent) {
         const lingering = data.find(t => t.linger_window === true);
         if (lingering) activeEvent = lingering;
       }
 
-      // 3️⃣ Up Next
       if (!activeEvent) {
         const upNext = data.find(t => t.up_next === true);
         if (upNext) activeEvent = upNext;
       }
 
-      // 4️⃣ Most recent completed
       if (!activeEvent) {
         const completed = [...data]
           .filter(t => t.is_completed === true)
@@ -247,17 +246,17 @@ export default function PicksScreen() {
   // -------------------------
   if (loading || !tournament) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#0E734A" />
+      <View style={[styles.centered, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.tint} />
       </View>
     );
   }
 
   if (loadingField) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#0E734A" />
-        <Text style={{ marginTop: 12, fontSize: 16, color: '#555' }}>
+      <View style={[styles.centered, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.tint} />
+        <Text style={{ marginTop: 12, fontSize: 16, color: themeColors.text + "99" }}>
           Loading your pick…
         </Text>
       </View>
@@ -265,7 +264,7 @@ export default function PicksScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
 
       {/* PickWidget */}
       <PickWidget
@@ -279,11 +278,13 @@ export default function PicksScreen() {
         <TouchableOpacity
           style={[
             styles.makePickButton,
-            userPick ? { backgroundColor: "#FFA500" } : null,
+            {
+              backgroundColor: userPick ? "#FFA500" : themeColors.tint,
+            },
           ]}
           onPress={openPicker}
         >
-          <Text style={styles.buttonText}>
+          <Text style={[styles.buttonText, { color: themeColors.background }]}>
             {userPick ? "Change Pick" : "Make Pick"}
           </Text>
         </TouchableOpacity>
@@ -297,26 +298,30 @@ export default function PicksScreen() {
         leaderboard={leaderboard}
         isOpenForPicks={tournament.is_open_for_picks}
       />
-      
+
       {/* League membership */}
       {!userInLeague && (
         <View style={{ marginTop: 20 }}>
-          <Text style={{ fontSize: 16, marginBottom: 10 }}>
+          <Text style={{ fontSize: 16, marginBottom: 10, color: themeColors.text }}>
             You’re not in a league yet.
           </Text>
 
           <TouchableOpacity
-            style={styles.makePickButton}
+            style={[styles.makePickButton, { backgroundColor: themeColors.tint }]}
             onPress={() => router.push('/join-league')}
           >
-            <Text style={styles.buttonText}>Join a League</Text>
+            <Text style={[styles.buttonText, { color: themeColors.background }]}>
+              Join a League
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.makePickButton, { backgroundColor: '#0E734A' }]}
+            style={[styles.makePickButton, { backgroundColor: themeColors.tint }]}
             onPress={() => router.push('/create-league')}
           >
-            <Text style={styles.buttonText}>Create a League</Text>
+            <Text style={[styles.buttonText, { color: themeColors.background }]}>
+              Create a League
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -324,19 +329,27 @@ export default function PicksScreen() {
       {/* League Picks */}
       {userInLeague && (
         <>
-          {/* 🔒 Hide league picks while picking is open */}
           {tournament.is_open_for_picks ? (
-            <View style={{ marginTop: 30, padding: 16, backgroundColor: "#fff", borderRadius: 8, borderWidth: 1, borderColor: "#e0e0e0" }}>
-              <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 6 }}>
+            <View
+              style={{
+                marginTop: 30,
+                padding: 16,
+                backgroundColor: themeColors.card,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: themeColors.border,
+              }}
+            >
+              <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 6, color: themeColors.text }}>
                 League Picks Locked
               </Text>
-              <Text style={{ fontSize: 14, color: "#555" }}>
+              <Text style={{ fontSize: 14, color: themeColors.text + "99" }}>
                 League picks will be shown once picking closes.
               </Text>
             </View>
           ) : (
             <>
-              <Text style={[styles.sectionTitle, { marginTop: 30 }]}>
+              <Text style={[styles.sectionTitle, { marginTop: 30, color: themeColors.text }]}>
                 League Picks
               </Text>
 
@@ -353,8 +366,19 @@ export default function PicksScreen() {
                   const isCurrentUser = item.user_id === currentUser.id;
 
                   return (
-                    <View style={styles.pickItem}>
-                      <Text style={isCurrentUser ? styles.userPick : styles.otherPick}>
+                    <View
+                      style={[
+                        styles.pickItem,
+                        { borderBottomColor: themeColors.border },
+                      ]}
+                    >
+                      <Text
+                        style={
+                          isCurrentUser
+                            ? { fontWeight: "bold", color: themeColors.tint, fontSize: 18 }
+                            : { color: themeColors.text, fontSize: 16 }
+                        }
+                      >
                         {name}: {item.golferName ?? "Unknown Golfer"}
                       </Text>
                     </View>
@@ -368,16 +392,17 @@ export default function PicksScreen() {
 
       {/* Picker Modal */}
       <Modal visible={pickerModalVisible} animationType="slide">
-        <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>Select a Golfer</Text>
+        <View style={[styles.modalContainer, { backgroundColor: themeColors.background }]}>
+          <Text style={[styles.modalTitle, { color: themeColors.text }]}>
+            Select a Golfer
+          </Text>
 
-          {/* ⭐ SAFEGUARD: Field not available yet */}
           {!tournament.is_open_for_picks || leaderboard.length === 0 ? (
             <View style={{ marginTop: 40, alignItems: 'center' }}>
-              <Text style={{ fontSize: 16, color: '#555', textAlign: 'center', paddingHorizontal: 20 }}>
+              <Text style={{ fontSize: 16, color: themeColors.text + "99", textAlign: 'center', paddingHorizontal: 20 }}>
                 The field for this tournament is not available yet.
               </Text>
-              <Text style={{ fontSize: 14, color: '#777', marginTop: 8 }}>
+              <Text style={{ fontSize: 14, color: themeColors.text + "66", marginTop: 8 }}>
                 Check back once picks open.
               </Text>
             </View>
@@ -387,22 +412,29 @@ export default function PicksScreen() {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.golferItem}
+                  style={[
+                    styles.golferItem,
+                    { borderBottomColor: themeColors.border },
+                  ]}
                   onPress={() =>
                     tournament.is_open_for_picks && submitPick(item)
                   }
                 >
-                  <Text style={styles.golferName}>{item.name}</Text>
+                  <Text style={[styles.golferName, { color: themeColors.text }]}>
+                    {item.name}
+                  </Text>
                 </TouchableOpacity>
               )}
             />
           )}
 
           <TouchableOpacity
-            style={styles.closeButton}
+            style={[styles.closeButton, { backgroundColor: themeColors.tint }]}
             onPress={() => setPickerModalVisible(false)}
           >
-            <Text style={styles.buttonText}>Close</Text>
+            <Text style={[styles.buttonText, { color: themeColors.background }]}>
+              Close
+            </Text>
           </TouchableOpacity>
         </View>
       </Modal>
@@ -412,37 +444,31 @@ export default function PicksScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-  buttonText: { color: 'white', fontWeight: '600', fontSize: 16 },
+  container: { flex: 1, padding: 20 },
+  buttonText: { fontWeight: '600', fontSize: 16 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
   pickItem: {
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
   },
-  userPick: { fontWeight: 'bold', color: '#0E734A', fontSize: 18 },
-  otherPick: { color: '#333', fontSize: 16 },
   centered: { alignItems: 'center', marginTop: 50 },
   makePickButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: '#0E734A',
     borderRadius: 8,
     marginBottom: 10,
     marginTop: 10,
   },
-  modalContainer: { flex: 1, padding: 20, backgroundColor: '#f2f2f2' },
+  modalContainer: { flex: 1, padding: 20 },
   modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 15 },
   golferItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
   },
   golferName: { fontSize: 16 },
   closeButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: '#FF3B30',
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 20,

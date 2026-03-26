@@ -1,3 +1,4 @@
+import { useTheme } from "@/app/providers/ThemeProvider";
 import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -8,17 +9,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  useColorScheme
+  View
 } from 'react-native';
-import { Colors } from '../constants/theme';
 import { useAuth } from './providers/AuthProvider';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { supabase } = useAuth();
-  const colorScheme = useColorScheme();
-  const themeColors = Colors[colorScheme ?? 'light'];
+  const { themeColors } = useTheme();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

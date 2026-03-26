@@ -13,9 +13,12 @@ import { useAuth } from "../providers/AuthProvider";
 // Logout icon
 import LogoutIcon from "@/assets/images/logout-button.png";
 
+import { useTheme } from "@/app/providers/ThemeProvider";
+
 export default function HomePage() {
   const { session } = useAuth();
   const user = session?.user ?? null;
+  const { themeColors } = useTheme();
 
   const [golferId, setGolferId] = useState<string | null>(null);
   const [tournamentId, setTournamentId] = useState<number | null>(null);
@@ -57,8 +60,8 @@ export default function HomePage() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
-      <ScrollView contentContainerStyle={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: themeColors.background }]}>
 
         {/* 🔐 Logout Button (Top Left) */}
         <View style={styles.authButtonContainer}>
@@ -66,12 +69,12 @@ export default function HomePage() {
             <Pressable onPress={handleLogout}>
               <Image
                 source={LogoutIcon}
-                style={{ width: 26, height: 26, resizeMode: "contain" }}
+                style={{ width: 26, height: 26, tintColor: themeColors.text }}
               />
             </Pressable>
           ) : (
             <Pressable onPress={() => router.push("/login")}>
-              <Text style={styles.authButtonText}>Login</Text>
+              <Text style={[styles.authButtonText, { color: themeColors.tint }]}>Login</Text>
             </Pressable>
           )}
         </View>
@@ -85,7 +88,7 @@ export default function HomePage() {
                 height: 26,
                 borderRadius: 13,
                 borderWidth: 1.5,
-                borderColor: "#000000",
+                borderColor: themeColors.text,
                 alignItems: "center",
                 justifyContent: "center",
               }}
@@ -93,7 +96,7 @@ export default function HomePage() {
               <Text
                 style={{
                   fontSize: 16,
-                  color: "#000000",
+                  color: themeColors.text,
                   fontWeight: "600",
                 }}
               >
@@ -103,7 +106,9 @@ export default function HomePage() {
           </Pressable>
         </View>
 
-        <Text style={styles.title}>Swing by Staarmann</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>
+          Swing by Staarmann
+        </Text>
 
         {/* 1️ EVENT WIDGET */}
         <EventWidget />
@@ -123,7 +128,6 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: "#ffffff",
     justifyContent: "flex-start",
   },
   authButtonContainer: {
@@ -139,7 +143,6 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   authButtonText: {
-    color: "#0a7f42",
     fontWeight: "600",
     fontSize: 14,
   },
@@ -148,7 +151,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
     marginTop: 0,
-    color: "black",
     textAlign: "center",
   },
 });

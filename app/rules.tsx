@@ -1,63 +1,177 @@
+import { useTheme } from "@/app/providers/ThemeProvider";
 import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function RulesScreen() {
+  const { themeColors } = useTheme();
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: themeColors.background }]}
+    >
       {/* Header Row */}
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Text
+            style={[
+              styles.backButtonText,
+              { color: themeColors.text },
+            ]}
+          >
+            ←
+          </Text>
         </Pressable>
 
-        <Text style={styles.headerTitle}>Game Rules</Text>
+        <Text
+          style={[
+            styles.headerTitle,
+            { color: themeColors.text },
+          ]}
+        >
+          Game Rules
+        </Text>
 
-        {/* Spacer to balance layout */}
+        {/* Spacer */}
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.sectionTitle}>1. Picking a Golfer</Text>
-        <Text style={styles.bodyText}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: themeColors.background },
+        ]}
+      >
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: themeColors.text },
+          ]}
+        >
+          1. Picking a Golfer
+        </Text>
+        <Text
+          style={[
+            styles.bodyText,
+            { color: themeColors.text + "99" },
+          ]}
+        >
           Each week, you select one golfer from the tournament field. Once you
           pick a golfer, you cannot pick them again for the rest of the season.
         </Text>
 
-        <Text style={styles.sectionTitle}>2. Scoring</Text>
-        <Text style={styles.bodyText}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: themeColors.text },
+          ]}
+        >
+          2. Scoring
+        </Text>
+        <Text
+          style={[
+            styles.bodyText,
+            { color: themeColors.text + "99" },
+          ]}
+        >
           Your score for the week is based on your golfer’s official tournament
           earnings. Higher earnings mean more points.
         </Text>
 
-        <Text style={styles.sectionTitle}>3. Leaderboards</Text>
-        <Text style={styles.bodyText}>
-          You can compete globally or within your league. Standings are
-          based on cumulative earnings across all events.
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: themeColors.text },
+          ]}
+        >
+          3. Leaderboards
+        </Text>
+        <Text
+          style={[
+            styles.bodyText,
+            { color: themeColors.text + "99" },
+          ]}
+        >
+          You can compete globally or within your league. Standings are based on
+          cumulative earnings across all events.
         </Text>
 
-        <Text style={styles.sectionTitle}>4. Deadlines</Text>
-        <Text style={styles.bodyText}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: themeColors.text },
+          ]}
+        >
+          4. Deadlines
+        </Text>
+        <Text
+          style={[
+            styles.bodyText,
+            { color: themeColors.text + "99" },
+          ]}
+        >
           Picks must be submitted before the first golfer tees off. Late picks
           are not allowed.
         </Text>
 
-        <Text style={styles.sectionTitle}>5. Strategy</Text>
-        <Text style={styles.bodyText}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: themeColors.text },
+          ]}
+        >
+          5. Strategy
+        </Text>
+        <Text
+          style={[
+            styles.bodyText,
+            { color: themeColors.text + "99" },
+          ]}
+        >
           Use the Pick Trends and Chalk Meter to understand how other players
           are choosing. Sometimes going against the crowd pays off.
         </Text>
 
-        <Text style={styles.sectionTitle}>6. Skins</Text>
-        <Text style={styles.bodyText}>
-          Being the only person in a league to pick the winner of a tournament 
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: themeColors.text },
+          ]}
+        >
+          6. Skins
+        </Text>
+        <Text
+          style={[
+            styles.bodyText,
+            { color: themeColors.text + "99" },
+          ]}
+        >
+          Being the only person in a league to pick the winner of a tournament
           brings bonus earnings.
         </Text>
 
-        <Text style={styles.sectionTitle}>7. Majors</Text>
-        <Text style={styles.bodyText}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: themeColors.text },
+          ]}
+        >
+          7. Majors
+        </Text>
+        <Text
+          style={[
+            styles.bodyText,
+            { color: themeColors.text + "99" },
+          ]}
+        >
           Picking for the 4 majors works slightly different. Each person will
-          pick 4 golfers instead of 1. You can pick golfers once for the 
+          pick 4 golfers instead of 1. You can pick golfers once for the
           standard events and once for the majors.
         </Text>
       </ScrollView>
@@ -68,16 +182,14 @@ export default function RulesScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#ffffff",
   },
 
-  // Header row with centered title + left back button
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 10, // aligns visually with home screen buttons
+    paddingTop: 10,
     paddingBottom: 10,
   },
 
@@ -88,13 +200,11 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 26,
     fontWeight: "600",
-    color: "#000000",
   },
 
   headerTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#000",
     textAlign: "center",
   },
 
@@ -108,12 +218,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 20,
     marginBottom: 6,
-    color: "#000",
   },
 
   bodyText: {
     fontSize: 15,
-    color: "#555",
     lineHeight: 20,
   },
 });
