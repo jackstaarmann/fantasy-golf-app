@@ -38,7 +38,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Resolve actual theme
   const resolved = theme === "system" ? systemScheme ?? "dark" : theme;
-  const themeColors = Colors[resolved];
+  const themeColors = { ...Colors[resolved] };
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, themeColors }}>
