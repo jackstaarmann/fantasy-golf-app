@@ -30,6 +30,7 @@ export default function PGALeaderboard() {
   const [tournamentId, setTournamentId] = useState<number | null>(null);
   const [tournamentName, setTournamentName] = useState("Leaderboard");
   const [timezone, setTimezone] = useState<string | null>(null);
+  const [tournament, setTournament] = useState<any>(null);
 
   if (!user) {
     return (
@@ -49,11 +50,6 @@ export default function PGALeaderboard() {
     if (n === 0) return "E";
     if (n > 0) return `+${n}`;
     return `${n}`;
-  };
-
-  const formatThru = (thru: number | string) => {
-    if (thru === 18) return "F";
-    return thru;
   };
 
   async function loadUserTimezone() {
@@ -94,6 +90,7 @@ export default function PGALeaderboard() {
     if (event) {
       setTournamentId(Number(event.id));
       setTournamentName(event.name);
+      setTournament(event); // includes cut_rule
     }
   }
 
@@ -148,17 +145,49 @@ export default function PGALeaderboard() {
     );
   }
 
-  const isCutPlayer = (p: LeaderboardPlayer) =>
+  // -----------------------------
+  // PROJECTED CUT LOGIC
+  // -----------------------------
+
+  // Sort players by score
+  const sortedPlayers = [...players].sort((a, b) => a.toPar - b.toPar);
+
+  // Determine projected cut score
+  let projectedCutScore: number | null = null;
+
+  if (tournament?.cut_rule && tournament.cut_rule > 0) {
+    const index = tournament.cut_rule - 1;
+    if (sortedPlayers[index]) {
+      projectedCutScore = sortedPlayers[index].toPar;
+    }
+  }
+
+  // Actual CUT from ESPN
+  const isActualCutPlayer = (p: LeaderboardPlayer) =>
     p.thru === 0 && !p.teeTime && (p.round ?? 0) >= 2;
+
+  // Projected CUT (before R2 completes)
+  const isProjectedCutPlayer = (p: LeaderboardPlayer) => {
+    if (!tournament?.cut_rule || tournament.cut_rule === 0) return false;
+    if (projectedCutScore === null) return false;
+    return p.toPar > projectedCutScore;
+  };
+
+  // Combined cut logic (for ordering only)
+  const isCutPlayer = (p: LeaderboardPlayer) =>
+    isActualCutPlayer(p) || isProjectedCutPlayer(p);
 
   const madeCut = players.filter((p) => !isCutPlayer(p));
   const missedCut = players.filter((p) => isCutPlayer(p));
 
-  const combinedList = [
-    ...madeCut,
-    { id: "CUT_DIVIDER" } as any,
-    ...missedCut,
-  ];
+  // Determine if divider should say PROJECTED CUT or CUT
+  const hasActualCutPlayers = players.some((p) => isActualCutPlayer(p));
+  const isProjectedCut = !hasActualCutPlayers && projectedCutScore !== null;
+
+  const combinedList =
+    missedCut.length > 0
+      ? [...madeCut, { id: "CUT_DIVIDER" } as any, ...missedCut]
+      : madeCut;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
@@ -266,31 +295,30 @@ export default function PGALeaderboard() {
                     color: themeColors.text,
                   }}
                 >
-                  CUT
+                  {isProjectedCut ? "PROJECTED CUT" : "CUT"}
                 </Text>
               </View>
             );
           }
 
-          const isCut = isCutPlayer(item);
+          const actualCut = isActualCutPlayer(item);
 
           const thruDisplay = (() => {
-            if (isCut) return "-";
+            if (actualCut) return "-";
 
             const playerRound = item.round ?? 0;
             const teeTime = item.teeTime ?? "";
 
-            // Player has not reached this round yet → show tee time
             if (playerRound < currentRound) {
-              return teeTime ? formatTimeWithTimezone(teeTime, timezone ?? "") : "TBD";
+              return teeTime
+                ? formatTimeWithTimezone(teeTime, timezone ?? "")
+                : "TBD";
             }
 
-            // Player is in the displayed round
             if (playerRound === currentRound) {
               return item.thru === 18 ? "F" : item.thru;
             }
 
-            // Player is ahead (rare)
             return "-";
           })();
 
@@ -323,7 +351,7 @@ export default function PGALeaderboard() {
                   color: themeColors.text,
                 }}
               >
-                {isCut ? "-" : formatToPar(item.today)}
+                {actualCut ? "-" : formatToPar(item.today)}
               </Text>
 
               <Text
