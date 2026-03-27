@@ -10,6 +10,7 @@ type LeaderboardPlayer = {
   rank: string;
   toPar: number | null;
   thru: number | null;
+  round?: number | null;
   teeTime?: string | null;
   projected_earnings: number;
 };
@@ -41,15 +42,36 @@ function formatTeeTime(teeTime: string | null | undefined): string {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function formatThru(thru: number | null, teeTime: string | null | undefined): string {
-  if (thru === null || thru === undefined) return "--";
+// NEW: Round-aware thru logic
+function computeThruDisplay(
+  golfer: LeaderboardPlayer,
+  currentRound: number
+): string {
+  const playerRound = golfer.round ?? 0;
+  const teeTime = golfer.teeTime ?? null;
+  const thru = golfer.thru ?? null;
 
-  if (thru === 0) {
-    const time = formatTeeTime(teeTime);
-    return time ? `Tee Time: ${time}` : "Tee Time: --";
+  // Player has not reached this round yet → show tee time
+  if (playerRound < currentRound) {
+    if (teeTime) {
+      const t = formatTeeTime(teeTime);
+      return `Tee Time: ${t}`;
+    }
+    return "Tee Time: --";
   }
 
-  return `Thru: ${thru}`;
+  // Player is in the displayed round
+  if (playerRound === currentRound) {
+    if (thru === 18) return "F";
+    if (thru === 0 && teeTime) {
+      const t = formatTeeTime(teeTime);
+      return `Tee Time: ${t}`;
+    }
+    return `Thru: ${thru}`;
+  }
+
+  // Player is ahead (rare)
+  return "-";
 }
 
 // ----------------------------
@@ -208,7 +230,10 @@ export default function PickWidget({
   const projected = golfer.projected_earnings ?? 0;
 
   const toParDisplay = formatToPar(golfer.toPar);
-  const thruDisplay = formatThru(golfer.thru, golfer.teeTime);
+
+  // NEW: round-aware thru logic
+  const currentRound = leaderboard[0]?.round ?? 1;
+  const thruDisplay = computeThruDisplay(golfer, currentRound);
 
   return (
     <View

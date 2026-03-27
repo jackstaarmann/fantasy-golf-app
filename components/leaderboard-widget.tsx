@@ -27,11 +27,6 @@ export default function LeaderboardWidget() {
     return `${n}`;
   };
 
-  const formatThru = (thru: number | string) => {
-    if (thru === 18) return "F";
-    return thru;
-  };
-
   // -----------------------------
   // Load user timezone
   // -----------------------------
@@ -218,10 +213,20 @@ export default function LeaderboardWidget() {
 
           {/* Player Rows */}
           {players.map((p) => {
-            const thruDisplay =
-              p.thru === 0 && p.teeTime
-                ? formatTimeWithTimezone(p.teeTime, timezone)
-                : formatThru(p.thru);
+            const thruDisplay = (() => {
+              const playerRound = p.round ?? 0;
+              const teeTime = p.teeTime ?? "";
+
+              if (playerRound < currentRound) {
+                return teeTime ? formatTimeWithTimezone(teeTime, timezone ?? "") : "TBD";
+              }
+
+              if (playerRound === currentRound) {
+                return p.thru === 18 ? "F" : p.thru;
+              }
+
+              return "-";
+            })();
 
             return (
               <View

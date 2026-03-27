@@ -274,11 +274,25 @@ export default function PGALeaderboard() {
 
           const isCut = isCutPlayer(item);
 
-          const thruDisplay = isCut
-            ? "-"
-            : item.thru === 0 && item.teeTime
-            ? formatTimeWithTimezone(item.teeTime, timezone)
-            : formatThru(item.thru);
+          const thruDisplay = (() => {
+            if (isCut) return "-";
+
+            const playerRound = item.round ?? 0;
+            const teeTime = item.teeTime ?? "";
+
+            // Player has not reached this round yet → show tee time
+            if (playerRound < currentRound) {
+              return teeTime ? formatTimeWithTimezone(teeTime, timezone ?? "") : "TBD";
+            }
+
+            // Player is in the displayed round
+            if (playerRound === currentRound) {
+              return item.thru === 18 ? "F" : item.thru;
+            }
+
+            // Player is ahead (rare)
+            return "-";
+          })();
 
           return (
             <View
