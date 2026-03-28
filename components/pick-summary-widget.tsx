@@ -1,13 +1,13 @@
 import type { LeaderboardPlayer } from "@/api";
 import { usePickSummary } from "@/api";
 import { useTheme } from "@/app/providers/ThemeProvider";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 type Props = {
@@ -24,6 +24,7 @@ type PickSummaryItem = {
   projectedEarnings: number;
   name: string;
   headshot: string;
+  rank?: number;
 };
 
 export function PickSummaryWidget({
@@ -38,43 +39,77 @@ export function PickSummaryWidget({
   const [mode, setMode] = useState<"league" | "global">(
     inLeague ? "league" : "global"
   );
-
   const [infoVisible, setInfoVisible] = useState(false);
 
   const normalizedId = String(tournamentId);
 
-  const { data, loading } = usePickSummary(
-    normalizedId,
-    mode,
-    leagueId ?? undefined
-  );
+  // -------------------------------------------------------
+  // PRELOAD BOTH MODES (GLOBAL + LEAGUE)
+  // -------------------------------------------------------
+  const {
+    data: globalHookData,
+    loading: globalLoading,
+  } = usePickSummary(normalizedId, "global");
+
+  const {
+    data: leagueHookData,
+    loading: leagueLoading,
+  } = usePickSummary(normalizedId, "league", leagueId ?? undefined);
+
+  // Local cached state (soft refresh)
+  const [globalData, setGlobalData] = useState<any>(null);
+  const [leagueData, setLeagueData] = useState<any>(null);
+
+  // Soft-refresh global
+  useEffect(() => {
+    if (globalHookData) setGlobalData(globalHookData);
+  }, [globalHookData]);
+
+  // Soft-refresh league
+  useEffect(() => {
+    if (leagueHookData) setLeagueData(leagueHookData);
+  }, [leagueHookData]);
+
+  // Active dataset (never blank)
+  const activeData = mode === "global" ? globalData : leagueData;
+
+  // First-load spinner (only if both are empty)
+  const initialLoading =
+    !globalData && (mode === "global" ? globalLoading : false) ||
+    (!leagueData && mode === "league" && leagueLoading);
 
   const hasData =
-    data && Array.isArray(data.topPicks) && data.topPicks.length > 0;
-
-  const topPicksWithEarnings: PickSummaryItem[] = hasData
-    ? data.topPicks.map((p: PickSummaryItem) => {
-        const lb = leaderboard.find((g) => g.id === p.golferId);
-
-        return {
-          ...p,
-          projectedEarnings: lb?.projected_earnings ?? 0,
-        };
-      })
-    : [];
-
-  const yourPickWithEarnings = data?.yourPick
-    ? (() => {
-        const lb = leaderboard.find((g) => g.id === data.yourPick.golferId);
-        return {
-          ...data.yourPick,
-          projectedEarnings: lb?.projected_earnings ?? 0,
-        };
-      })()
-    : null;
+    activeData &&
+    Array.isArray(activeData.topPicks) &&
+    activeData.topPicks.length > 0;
 
   // -------------------------------------------------------
-  // 🔒 LOCKED STATE — picks are still open
+  // DERIVED STATE
+  // -------------------------------------------------------
+  const topPicksWithEarnings = useMemo(() => {
+    if (!hasData) return [];
+
+    return activeData.topPicks.map((p: PickSummaryItem) => {
+      const lb = leaderboard.find((g) => g.id === p.golferId);
+      return {
+        ...p,
+        projectedEarnings: lb?.projected_earnings ?? 0,
+      };
+    });
+  }, [activeData, leaderboard, hasData]);
+
+  const yourPickWithEarnings = useMemo(() => {
+    if (!activeData?.yourPick) return null;
+
+    const lb = leaderboard.find((g) => g.id === activeData.yourPick.golferId);
+    return {
+      ...activeData.yourPick,
+      projectedEarnings: lb?.projected_earnings ?? 0,
+    };
+  }, [activeData, leaderboard]);
+
+  // -------------------------------------------------------
+  // LOCKED STATE
   // -------------------------------------------------------
   if (isOpenForPicks) {
     return (
@@ -89,7 +124,6 @@ export function PickSummaryWidget({
           alignItems: "center",
         }}
       >
-        {/* Lock Icon */}
         <View
           style={{
             width: 44,
@@ -131,7 +165,7 @@ export function PickSummaryWidget({
   }
 
   // -------------------------------------------------------
-  // NORMAL PICK SUMMARY (picks closed)
+  // NORMAL PICK SUMMARY
   // -------------------------------------------------------
   return (
     <View
@@ -212,20 +246,20 @@ export function PickSummaryWidget({
         </View>
       </View>
 
-      {/* Loading */}
-      {loading && (
+      {/* Spinner only on FIRST load */}
+      {initialLoading && (
         <View style={{ paddingVertical: 20 }}>
           <ActivityIndicator color={themeColors.tint} />
         </View>
       )}
 
       {/* No picks */}
-      {!loading && !hasData && (
+      {!initialLoading && !hasData && (
         <Text style={{ color: themeColors.text + "99" }}>No picks yet.</Text>
       )}
 
       {/* Chalk Meter */}
-      {!loading && hasData && (
+      {!initialLoading && hasData && (
         <View style={{ marginBottom: 16 }}>
           <View
             style={{
@@ -238,7 +272,6 @@ export function PickSummaryWidget({
               Chalk Meter
             </Text>
 
-            {/* Info Icon */}
             <TouchableOpacity onPress={() => setInfoVisible(true)}>
               <View
                 style={{
@@ -269,7 +302,7 @@ export function PickSummaryWidget({
             <View
               style={{
                 height: 8,
-                width: `${(data.chalkScore ?? 0) * 100}%`,
+                width: `${(activeData.chalkScore ?? 0) * 100}%`,
                 backgroundColor: themeColors.tint,
               }}
             />
@@ -324,37 +357,39 @@ export function PickSummaryWidget({
       </Modal>
 
       {/* Top Picks */}
-      {!loading &&
+      {!initialLoading &&
         hasData &&
-        topPicksWithEarnings.map((p, idx) => (
-          <View
-            key={p.golferId}
-            style={{
-              paddingVertical: 10,
-              borderBottomWidth:
-                idx === topPicksWithEarnings.length - 1 ? 0 : 1,
-              borderColor: themeColors.border,
-              flexDirection: "row",
-              justifyContent: "space-between",
-            }}
-          >
-            <Text style={{ fontSize: 16, color: themeColors.text }}>
-              {p.name}
-            </Text>
+        topPicksWithEarnings.map(
+          (p: PickSummaryItem, idx: number) => (
+            <View
+              key={p.golferId}
+              style={{
+                paddingVertical: 10,
+                borderBottomWidth:
+                  idx === topPicksWithEarnings.length - 1 ? 0 : 1,
+                borderColor: themeColors.border,
+                flexDirection: "row",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text style={{ fontSize: 16, color: themeColors.text }}>
+                {p.name}
+              </Text>
 
-            <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontSize: 14, color: themeColors.text }}>
-                {(p.pickRate * 100).toFixed(1)}%
-              </Text>
-              <Text style={{ fontSize: 12, color: themeColors.text + "99" }}>
-                ${Math.round(p.projectedEarnings).toLocaleString()}
-              </Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={{ fontSize: 14, color: themeColors.text }}>
+                  {(p.pickRate * 100).toFixed(1)}%
+                </Text>
+                <Text style={{ fontSize: 12, color: themeColors.text + "99" }}>
+                  ${Math.round(p.projectedEarnings).toLocaleString()}
+                </Text>
+              </View>
             </View>
-          </View>
-        ))}
+          )
+        )}
 
       {/* Your Pick */}
-      {!loading && yourPickWithEarnings && (
+      {!initialLoading && yourPickWithEarnings && (
         <View
           style={{
             marginTop: 16,
