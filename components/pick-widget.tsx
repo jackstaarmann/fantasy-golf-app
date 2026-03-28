@@ -1,4 +1,5 @@
 import { useTheme } from "@/app/providers/ThemeProvider";
+import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
@@ -51,7 +52,6 @@ function computeThruDisplay(
   const teeTime = golfer.teeTime ?? null;
   const thru = golfer.thru ?? null;
 
-  // Player has not reached this round yet → show tee time
   if (playerRound < currentRound) {
     if (teeTime) {
       const t = formatTeeTime(teeTime);
@@ -60,7 +60,6 @@ function computeThruDisplay(
     return "Tee Time: --";
   }
 
-  // Player is in the displayed round
   if (playerRound === currentRound) {
     if (thru === 18) return "F";
     if (thru === 0 && teeTime) {
@@ -70,7 +69,6 @@ function computeThruDisplay(
     return `Thru: ${thru}`;
   }
 
-  // Player is ahead (rare)
   return "-";
 }
 
@@ -180,6 +178,7 @@ export default function PickWidget({
   tournament: Tournament | null;
 }) {
   const { themeColors } = useTheme();
+  const router = useRouter(); // ✅ correct placement
 
   const [profile, setProfile] = useState<{ headshot: string | null; flag: string | null }>({
     headshot: null,
@@ -231,7 +230,6 @@ export default function PickWidget({
 
   const toParDisplay = formatToPar(golfer.toPar);
 
-  // NEW: round-aware thru logic
   const currentRound = leaderboard[0]?.round ?? 1;
   const thruDisplay = computeThruDisplay(golfer, currentRound);
 
@@ -279,9 +277,20 @@ export default function PickWidget({
           </Text>
         </View>
 
+        {/* UPDATED ROW WITH VIEW HISTORY BUTTON */}
         <View style={styles.row}>
           <Text style={[styles.projected, { color: themeColors.tint }]}>
             Projected: ${projected.toLocaleString()}
+          </Text>
+
+          <Text
+            style={[
+              styles.historyLink,
+              { color: themeColors.text + "99" }
+            ]}
+            onPress={() => router.push("/pick-history")} // ✅ correct Expo Router navigation
+          >
+            View History →
           </Text>
         </View>
       </View>
@@ -345,6 +354,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 15,
     fontWeight: "600",
+  },
+  historyLink: {
+    fontSize: 13,
+    fontWeight: "500",
+    alignSelf: "center",
+    marginLeft: 12,
   },
   noPick: {
     fontSize: 16,

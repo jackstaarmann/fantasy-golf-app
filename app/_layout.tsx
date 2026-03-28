@@ -23,6 +23,8 @@ function NavigationGuard() {
       "all-news",
       "join-league",
       "create-league",
+      "pick-history",
+      "app",
     ];
 
     const inTabsGroup = root === "(tabs)";
