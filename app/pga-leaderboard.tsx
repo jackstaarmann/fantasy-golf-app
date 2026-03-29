@@ -4,7 +4,6 @@ import {
 } from "@/api";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useTheme } from "@/app/providers/ThemeProvider";
-import { formatTimeWithTimezone } from "@/components/utils/time";
 import supabase from "@/supabase";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
@@ -14,7 +13,7 @@ import {
   FlatList,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -53,7 +52,9 @@ export default function PGALeaderboard() {
   };
 
   async function loadUserTimezone() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
 
     const { data } = await supabase
@@ -90,7 +91,7 @@ export default function PGALeaderboard() {
     if (event) {
       setTournamentId(Number(event.id));
       setTournamentName(event.name);
-      setTournament(event); // includes cut_rule
+      setTournament(event);
     }
   }
 
@@ -129,8 +130,6 @@ export default function PGALeaderboard() {
     return () => clearInterval(interval);
   }, [tournamentId]);
 
-  const currentRound = players[0]?.round ?? 1;
-
   if (loading) {
     return (
       <SafeAreaView
@@ -146,15 +145,19 @@ export default function PGALeaderboard() {
   }
 
   // -----------------------------
-  // PROJECTED CUT LOGIC
+  // CUT / PROJECTED CUT / WD LOGIC
   // -----------------------------
 
-  // Sort players by score
+  const tournamentRound =
+    players.length > 0
+      ? Math.max(...players.map((p) => p.round ?? 1))
+      : 1;
+
+  const currentRound = tournamentRound;
+
   const sortedPlayers = [...players].sort((a, b) => a.toPar - b.toPar);
 
-  // Determine projected cut score
   let projectedCutScore: number | null = null;
-
   if (tournament?.cut_rule && tournament.cut_rule > 0) {
     const index = tournament.cut_rule - 1;
     if (sortedPlayers[index]) {
@@ -162,32 +165,44 @@ export default function PGALeaderboard() {
     }
   }
 
-  // Actual CUT from ESPN
-  const isActualCutPlayer = (p: LeaderboardPlayer) =>
-    p.thru === 0 && !p.teeTime && (p.round ?? 0) >= 2;
+  const cutIsOfficial = tournamentRound >= 3;
 
-  // Projected CUT (before R2 completes)
+  const isWDPlayer = (p: LeaderboardPlayer) =>
+    p.rank === "-" &&
+    (p.round ?? 0) < tournamentRound &&
+    p.thru < 18;
+
+  const isCutPlayer = (p: LeaderboardPlayer) =>
+    cutIsOfficial &&
+    !isWDPlayer(p) &&
+    (p.round ?? 1) < tournamentRound &&
+    !p.teeTime &&
+    p.thru === 18;
+
   const isProjectedCutPlayer = (p: LeaderboardPlayer) => {
-    if (!tournament?.cut_rule || tournament.cut_rule === 0) return false;
-    if (projectedCutScore === null) return false;
+    if (cutIsOfficial) return false;
+    if (!tournament?.cut_rule || projectedCutScore === null) return false;
     return p.toPar > projectedCutScore;
   };
 
-  // Combined cut logic (for ordering only)
-  const isCutPlayer = (p: LeaderboardPlayer) =>
-    isActualCutPlayer(p) || isProjectedCutPlayer(p);
+  const madeCut = players.filter(
+    (p) => !isCutPlayer(p) && !isWDPlayer(p) && !isProjectedCutPlayer(p)
+  );
+  const projectedCut = players.filter((p) => isProjectedCutPlayer(p));
+  const cutPlayers = players.filter((p) => isCutPlayer(p));
+  const wdPlayers = players.filter((p) => isWDPlayer(p));
 
-  const madeCut = players.filter((p) => !isCutPlayer(p));
-  const missedCut = players.filter((p) => isCutPlayer(p));
+  const combinedList = [
+    ...madeCut,
+    ...(projectedCut.length > 0 || cutPlayers.length > 0
+      ? [{ id: "CUT_DIVIDER" } as any]
+      : []),
+    ...projectedCut,
+    ...cutPlayers,
+    ...wdPlayers, // WD at bottom, no divider
+  ];
 
-  // Determine if divider should say PROJECTED CUT or CUT
-  const hasActualCutPlayers = players.some((p) => isActualCutPlayer(p));
-  const isProjectedCut = !hasActualCutPlayers && projectedCutScore !== null;
-
-  const combinedList =
-    missedCut.length > 0
-      ? [...madeCut, { id: "CUT_DIVIDER" } as any, ...missedCut]
-      : madeCut;
+  const cutLabel = cutIsOfficial ? "CUT" : "PROJECTED CUT";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
@@ -295,32 +310,26 @@ export default function PGALeaderboard() {
                     color: themeColors.text,
                   }}
                 >
-                  {isProjectedCut ? "PROJECTED CUT" : "CUT"}
+                  {cutLabel}
                 </Text>
               </View>
             );
           }
 
-          const actualCut = isActualCutPlayer(item);
+          const isWD = isWDPlayer(item);
+          const isCut = isCutPlayer(item);
 
-          const thruDisplay = (() => {
-            if (actualCut) return "-";
+          const rankDisplay = isWD
+            ? "WD"
+            : isCut
+            ? "CUT"
+            : item.rank;
 
-            const playerRound = item.round ?? 0;
-            const teeTime = item.teeTime ?? "";
+          const todayDisplay = isWD || isCut ? "-" : formatToPar(item.today);
+          const thruDisplay = isWD || isCut ? "-" : item.thru === 18 ? "F" : item.thru;
 
-            if (playerRound < currentRound) {
-              return teeTime
-                ? formatTimeWithTimezone(teeTime, timezone ?? "")
-                : "TBD";
-            }
-
-            if (playerRound === currentRound) {
-              return item.thru === 18 ? "F" : item.thru;
-            }
-
-            return "-";
-          })();
+          // WD and CUT both show formatted total score
+          const totalDisplay = formatToPar(item.toPar);
 
           return (
             <View
@@ -340,7 +349,7 @@ export default function PGALeaderboard() {
                   flex: 1,
                 }}
               >
-                {item.rank}. {item.name}
+                {rankDisplay}. {item.name}
               </Text>
 
               <Text
@@ -351,7 +360,7 @@ export default function PGALeaderboard() {
                   color: themeColors.text,
                 }}
               >
-                {actualCut ? "-" : formatToPar(item.today)}
+                {todayDisplay}
               </Text>
 
               <Text
@@ -373,7 +382,7 @@ export default function PGALeaderboard() {
                   color: themeColors.text,
                 }}
               >
-                {formatToPar(item.toPar)}
+                {totalDisplay}
               </Text>
             </View>
           );
