@@ -141,7 +141,11 @@ export default function LeaderboardWidget() {
     return () => clearInterval(interval);
   }, [tournamentId]);
 
-  const currentRound = players[0]?.round ?? 1;
+  // Determine the actual current round from the field
+  const currentRound =
+    players.length > 0
+      ? Math.max(...players.map((p) => p.round ?? 1))
+      : 1;
 
   return (
     <View
@@ -217,14 +221,24 @@ export default function LeaderboardWidget() {
               const playerRound = p.round ?? 0;
               const teeTime = p.teeTime ?? "";
 
-              if (playerRound < currentRound) {
-                return teeTime ? formatTimeWithTimezone(teeTime, timezone ?? "") : "TBD";
+              // Player is in this round but has not started yet
+              if (playerRound === currentRound && p.thru === 0 && teeTime) {
+                return formatTimeWithTimezone(teeTime, timezone ?? "");
               }
 
+              // Player has not reached this round yet
+              if (playerRound < currentRound) {
+                return teeTime
+                  ? formatTimeWithTimezone(teeTime, timezone ?? "")
+                  : "TBD";
+              }
+
+              // Actively playing
               if (playerRound === currentRound) {
                 return p.thru === 18 ? "F" : p.thru;
               }
 
+              // Future rounds
               return "-";
             })();
 
