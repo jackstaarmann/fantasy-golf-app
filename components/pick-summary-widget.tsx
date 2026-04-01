@@ -36,47 +36,67 @@ export function PickSummaryWidget({
 }: Props) {
   const { themeColors } = useTheme();
 
+  // -------------------------------------------------------
+  // MODE: force global if user is not in a league
+  // -------------------------------------------------------
   const [mode, setMode] = useState<"league" | "global">(
     inLeague ? "league" : "global"
   );
-  const [infoVisible, setInfoVisible] = useState(false);
 
+  useEffect(() => {
+    if (!inLeague) setMode("global");
+  }, [inLeague]);
+
+  const [infoVisible, setInfoVisible] = useState(false);
   const normalizedId = String(tournamentId);
 
   // -------------------------------------------------------
-  // PRELOAD BOTH MODES (GLOBAL + LEAGUE)
+  // SAFE FETCHING
   // -------------------------------------------------------
+
+  // Global always loads
   const {
     data: globalHookData,
     loading: globalLoading,
   } = usePickSummary(normalizedId, "global");
 
+  // League loads ONLY if valid
+  const shouldLoadLeague = inLeague && !!leagueId;
+
   const {
     data: leagueHookData,
     loading: leagueLoading,
-  } = usePickSummary(normalizedId, "league", leagueId ?? undefined);
+  } = usePickSummary(
+    normalizedId,
+    shouldLoadLeague ? "league" : "global", // fallback to global to avoid bad calls
+    shouldLoadLeague ? leagueId! : undefined
+  );
 
-  // Local cached state (soft refresh)
+  // -------------------------------------------------------
+  // LOCAL CACHED STATE
+  // -------------------------------------------------------
   const [globalData, setGlobalData] = useState<any>(null);
   const [leagueData, setLeagueData] = useState<any>(null);
 
-  // Soft-refresh global
   useEffect(() => {
     if (globalHookData) setGlobalData(globalHookData);
   }, [globalHookData]);
 
-  // Soft-refresh league
   useEffect(() => {
-    if (leagueHookData) setLeagueData(leagueHookData);
-  }, [leagueHookData]);
+    if (shouldLoadLeague && leagueHookData) {
+      setLeagueData(leagueHookData);
+    }
+  }, [leagueHookData, shouldLoadLeague]);
 
-  // Active dataset (never blank)
-  const activeData = mode === "global" ? globalData : leagueData;
+  // -------------------------------------------------------
+  // ACTIVE DATASET
+  // -------------------------------------------------------
+  const activeData =
+    mode === "league" && shouldLoadLeague ? leagueData : globalData;
 
-  // First-load spinner (only if both are empty)
   const initialLoading =
-    !globalData && (mode === "global" ? globalLoading : false) ||
-    (!leagueData && mode === "league" && leagueLoading);
+    (mode === "global" && !globalData && globalLoading) ||
+    (mode === "league" && shouldLoadLeague && !leagueData && leagueLoading);
 
   const hasData =
     activeData &&
@@ -199,13 +219,13 @@ export function PickSummaryWidget({
           }}
         >
           <TouchableOpacity
-            onPress={() => setMode("league")}
+            onPress={() => inLeague && setMode("league")}
             disabled={!inLeague}
             style={{
               paddingVertical: 6,
               paddingHorizontal: 12,
               backgroundColor:
-                mode === "league" ? themeColors.tint : "transparent",
+                mode === "league" && inLeague ? themeColors.tint : "transparent",
               borderRadius: 8,
               opacity: inLeague ? 1 : 0.4,
             }}
@@ -213,7 +233,7 @@ export function PickSummaryWidget({
             <Text
               style={{
                 color:
-                  mode === "league"
+                  mode === "league" && inLeague
                     ? themeColors.background
                     : themeColors.text + "99",
               }}
@@ -246,7 +266,7 @@ export function PickSummaryWidget({
         </View>
       </View>
 
-      {/* Spinner only on FIRST load */}
+      {/* Spinner */}
       {initialLoading && (
         <View style={{ paddingVertical: 20 }}>
           <ActivityIndicator color={themeColors.tint} />
@@ -359,34 +379,32 @@ export function PickSummaryWidget({
       {/* Top Picks */}
       {!initialLoading &&
         hasData &&
-        topPicksWithEarnings.map(
-          (p: PickSummaryItem, idx: number) => (
-            <View
-              key={p.golferId}
-              style={{
-                paddingVertical: 10,
-                borderBottomWidth:
-                  idx === topPicksWithEarnings.length - 1 ? 0 : 1,
-                borderColor: themeColors.border,
-                flexDirection: "row",
-                justifyContent: "space-between",
-              }}
-            >
-              <Text style={{ fontSize: 16, color: themeColors.text }}>
-                {p.name}
-              </Text>
+        topPicksWithEarnings.map((p: PickSummaryItem, idx: number) => (
+          <View
+            key={p.golferId}
+            style={{
+              paddingVertical: 10,
+              borderBottomWidth:
+                idx === topPicksWithEarnings.length - 1 ? 0 : 1,
+              borderColor: themeColors.border,
+              flexDirection: "row",
+              justifyContent: "space-between",
+            }}
+          >
+            <Text style={{ fontSize: 16, color: themeColors.text }}>
+              {p.name}
+            </Text>
 
-              <View style={{ alignItems: "flex-end" }}>
-                <Text style={{ fontSize: 14, color: themeColors.text }}>
-                  {(p.pickRate * 100).toFixed(1)}%
-                </Text>
-                <Text style={{ fontSize: 12, color: themeColors.text + "99" }}>
-                  ${Math.round(p.projectedEarnings).toLocaleString()}
-                </Text>
-              </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={{ fontSize: 14, color: themeColors.text }}>
+                {(p.pickRate * 100).toFixed(1)}%
+              </Text>
+              <Text style={{ fontSize: 12, color: themeColors.text + "99" }}>
+                ${Math.round(p.projectedEarnings).toLocaleString()}
+              </Text>
             </View>
-          )
-        )}
+          </View>
+        ))}
 
       {/* Your Pick */}
       {!initialLoading && yourPickWithEarnings && (

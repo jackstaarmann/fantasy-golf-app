@@ -184,13 +184,22 @@ export async function getPickSummary(
 ) {
   const { data: { session } } = await supabase.auth.getSession();
 
+  // 🚨 Prevent invalid league calls
+  if (mode === "league" && !leagueId) {
+    return {
+      topPicks: [],
+      chalkMeter: null,
+      sampleSize: 0,
+    };
+  }
+
   const body: any = {
-    tournament_id: String(id),   // must be string (your test proved it)
+    tournament_id: String(id),
     mode,
   };
 
-  if (mode === "league" && leagueId) {
-    body.league_id = leagueId;   // required for league mode
+  if (mode === "league") {
+    body.league_id = leagueId;
   }
 
   const res = await fetch(
@@ -212,6 +221,7 @@ export async function getPickSummary(
 
   return res.json();
 }
+
 
 // ---------------------------------------------------------
 // NEW: usePickSummary Hook
