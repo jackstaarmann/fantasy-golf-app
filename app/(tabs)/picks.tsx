@@ -392,7 +392,10 @@ export default function PicksScreen() {
 
       {/* Picker Modal */}
       <Modal visible={pickerModalVisible} animationType="slide">
-        <View style={[styles.modalContainer, { backgroundColor: themeColors.background }]}>
+        <SafeAreaView
+          style={[styles.modalContainer, { backgroundColor: themeColors.background }]}
+          edges={["top", "left", "right", "bottom"]}
+        >
           <Text style={[styles.modalTitle, { color: themeColors.text }]}>
             Select a Golfer
           </Text>
@@ -436,7 +439,7 @@ export default function PicksScreen() {
               Close
             </Text>
           </TouchableOpacity>
-        </View>
+        </SafeAreaView>
       </Modal>
 
     </SafeAreaView>

@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type PickHistoryItem = {
   id: string;
@@ -38,7 +39,6 @@ export default function PickHistoryScreen() {
     async function loadHistory() {
       setLoading(true);
 
-      // 1️⃣ Fetch picks
       const { data: pickRows, error } = await supabase
         .from("picks")
         .select("id, golfer_id, tournament_id, created_at")
@@ -54,14 +54,12 @@ export default function PickHistoryScreen() {
       const results: PickHistoryItem[] = [];
 
       for (const p of pickRows) {
-        // 2️⃣ Fetch tournament name
         const { data: tournamentRow } = await supabase
           .from("tournaments")
           .select("name")
           .eq("id", p.tournament_id)
           .single();
 
-        // 3️⃣ Fetch leaderboard for this tournament
         let leaderboard: any[] = [];
         try {
           const res = await fetch(
@@ -82,12 +80,10 @@ export default function PickHistoryScreen() {
           console.error("Leaderboard fetch error:", err);
         }
 
-        // 4️⃣ Find golfer in leaderboard
         const golferRow = leaderboard.find(
           (g: any) => String(g.id) === String(p.golfer_id)
         );
 
-        // 5️⃣ Fetch headshot from ESPN athlete JSON
         let headshot = null;
         try {
           const res = await fetch(
@@ -119,73 +115,83 @@ export default function PickHistoryScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: themeColors.background }]}
+        edges={["top", "left", "right"]}
+      >
         <Text style={{ color: themeColors.text }}>Loading...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.push("/(tabs)/picks")}>
-          <Text style={[styles.backButton, { color: themeColors.tint }]}>← Back</Text>
-        </TouchableOpacity>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+      edges={["top", "left", "right"]}
+    >
+      <View style={{ flex: 1 }}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/picks")}>
+            <Text style={[styles.backButton, { color: themeColors.tint }]}>
+              ← Back
+            </Text>
+          </TouchableOpacity>
 
-        <Text style={[styles.header, { color: themeColors.text }]}>
-          Your Pick History
-        </Text>
+          <Text style={[styles.header, { color: themeColors.text }]}>
+            Your Pick History
+          </Text>
 
-        <View style={{ width: 50 }} />
-      </View>
+          <View style={{ width: 50 }} />
+        </View>
 
-      <FlatList
-        data={picks}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.card,
-              { backgroundColor: themeColors.card, borderColor: themeColors.border },
-            ]}
-          >
-            <View style={styles.row}>
-              <Image
-                source={
-                  item.headshot
-                    ? { uri: item.headshot }
-                    : require("@/assets/images/golfer-placeholder.png")
-                }
-                style={styles.headshot}
-              />
+        <FlatList
+          data={picks}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.card,
+                { backgroundColor: themeColors.card, borderColor: themeColors.border },
+              ]}
+            >
+              <View style={styles.row}>
+                <Image
+                  source={
+                    item.headshot
+                      ? { uri: item.headshot }
+                      : require("@/assets/images/golfer-placeholder.png")
+                  }
+                  style={styles.headshot}
+                />
 
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.name, { color: themeColors.text }]}>
-                  {item.golferName}
-                </Text>
-                <Text style={[styles.sub, { color: themeColors.text + "99" }]}>
-                  {item.tournamentName}
-                </Text>
-
-                <View style={styles.inline}>
-                  <Text style={[styles.result, { color: themeColors.tint }]}>
-                    Finish: {item.finish}
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.name, { color: themeColors.text }]}>
+                    {item.golferName}
                   </Text>
-                  <Text style={[styles.result, { color: themeColors.text + "99" }]}>
-                    To Par: {item.toPar ?? "--"}
+                  <Text style={[styles.sub, { color: themeColors.text + "99" }]}>
+                    {item.tournamentName}
+                  </Text>
+
+                  <View style={styles.inline}>
+                    <Text style={[styles.result, { color: themeColors.tint }]}>
+                      Finish: {item.finish}
+                    </Text>
+                    <Text style={[styles.result, { color: themeColors.text + "99" }]}>
+                      To Par: {item.toPar ?? "--"}
+                    </Text>
+                  </View>
+
+                  <Text style={[styles.earnings, { color: themeColors.tint }]}>
+                    Earnings: ${item.earnings.toLocaleString()}
                   </Text>
                 </View>
-
-                <Text style={[styles.earnings, { color: themeColors.tint }]}>
-                  Earnings: ${item.earnings.toLocaleString()}
-                </Text>
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
-    </View>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
