@@ -152,31 +152,31 @@ export default function PicksScreen() {
 
     const { data: userPickRaw } = await supabase
       .from('picks')
-      .select(
-        `
+      .select(`
         id,
         user_id,
         golfer_id,
         users: user_id ( team_name, name, email )
-      `
-      )
+      `)
       .eq('user_id', currentUser.id)
       .eq('tournament_id', tournament.id)
       .maybeSingle<Pick>();
 
     setUserPick(userPickRaw ? withName(userPickRaw) : null);
 
+    // -------------------------
+    // FIXED: Only fetch picks from THIS league
+    // -------------------------
     const { data: leagueRaw } = await supabase
       .from('picks')
-      .select(
-        `
+      .select(`
         id,
         user_id,
         golfer_id,
         users: user_id ( team_name, name, email )
-      `
-      )
+      `)
       .eq('tournament_id', tournament.id)
+      .eq('league_id', userLeagueId)   // <-- THE FIX
       .returns<Pick[]>();
 
     setLeaguePicks((leagueRaw ?? []).map(withName));
