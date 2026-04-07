@@ -28,7 +28,11 @@ export default function LeaderboardScreen() {
   const { themeColors } = useTheme();
 
   const [activeTab, setActiveTab] = useState<'global' | 'league'>('global');
-  const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
+
+  // NEW: Cached leaderboards
+  const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardUser[]>([]);
+  const [leagueLeaderboard, setLeagueLeaderboard] = useState<LeaderboardUser[]>([]);
+
   const [projected, setProjected] = useState<LeaderboardUser[]>([]);
   const [showProjected, setShowProjected] = useState(false);
 
@@ -97,32 +101,23 @@ export default function LeaderboardScreen() {
   }, []);
 
   // -----------------------------
-  // Load leaderboard when ready
+  // Fetch leaderboard (cached)
   // -----------------------------
-  useEffect(() => {
-    if (!userId) return; // wait for user
-    fetchLeaderboard();
-  }, [activeTab, leagueId, userId]);
-
-  // -----------------------------
-  // Fetch leaderboard
-  // -----------------------------
-  async function fetchLeaderboard() {
+  async function fetchLeaderboard(tab: 'global' | 'league') {
     setLoading(true);
 
     try {
       let userIdsToInclude: string[] = [];
 
-      if (activeTab === 'global') {
+      if (tab === 'global') {
         const { data: profiles } = await supabase
           .from('users')
           .select('id');
 
         userIdsToInclude = profiles?.map((p) => p.id) ?? [];
       } else {
-        // LEAGUE TAB
         if (!leagueId) {
-          setLeaderboard([]);
+          setLeagueLeaderboard([]);
           setLoading(false);
           return;
         }
@@ -136,7 +131,8 @@ export default function LeaderboardScreen() {
       }
 
       if (userIdsToInclude.length === 0) {
-        setLeaderboard([]);
+        if (tab === 'global') setGlobalLeaderboard([]);
+        else setLeagueLeaderboard([]);
         setLoading(false);
         return;
       }
@@ -167,21 +163,41 @@ export default function LeaderboardScreen() {
         totals[pick.user_id].total_points += Number(pick.points || 0);
       });
 
-      const map = Object.fromEntries(
-        (profiles ?? []).map((p) => [p.id, p])
+      const sorted = Object.values(totals).sort(
+        (a, b) => b.total_points - a.total_points
       );
+
+      // Cache results
+      if (tab === 'global') setGlobalLeaderboard(sorted);
+      else setLeagueLeaderboard(sorted);
+
+      // Cache profiles for projected standings
+      const map = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]));
       setProfileMap(map);
 
-      setLeaderboard(
-        Object.values(totals).sort((a, b) => b.total_points - a.total_points)
-      );
     } catch (err) {
       console.error('Leaderboard error:', err);
-      setLeaderboard([]);
+      if (tab === 'global') setGlobalLeaderboard([]);
+      else setLeagueLeaderboard([]);
     }
 
     setLoading(false);
   }
+
+  // -----------------------------
+  // Load leaderboard only when needed
+  // -----------------------------
+  useEffect(() => {
+    if (!userId) return;
+
+    if (activeTab === 'global' && globalLeaderboard.length === 0) {
+      fetchLeaderboard('global');
+    }
+
+    if (activeTab === 'league' && leagueId && leagueLeaderboard.length === 0) {
+      fetchLeaderboard('league');
+    }
+  }, [activeTab, leagueId, userId]);
 
   // -----------------------------
   // Fetch projected standings
@@ -226,7 +242,12 @@ export default function LeaderboardScreen() {
     return <Text style={{ color: themeColors.text + "66" }}>–</Text>;
   }
 
-  const dataToRender = showProjected ? projected : leaderboard;
+  const dataToRender =
+    showProjected
+      ? projected
+      : activeTab === 'global'
+      ? globalLeaderboard
+      : leagueLeaderboard;
 
   // -----------------------------
   // RENDER
