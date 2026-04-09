@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useAuth } from './providers/AuthProvider';
+import { useAuth } from '../providers/AuthProvider';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -45,7 +45,7 @@ export default function SignupScreen() {
 
       {/* App Icon */}
       <Image 
-        source={require('../assets/images/Swing.png')}
+        source={require('../../assets/images/Swing.png')}
         style={styles.icon}
       />
 

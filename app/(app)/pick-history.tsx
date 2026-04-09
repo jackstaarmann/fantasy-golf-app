@@ -131,7 +131,7 @@ export default function PickHistoryScreen() {
     >
       <View style={{ flex: 1 }}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.push("/(tabs)/picks")}>
+          <TouchableOpacity onPress={() => router.back()}>
             <Text style={[styles.backButton, { color: themeColors.tint }]}>
               ← Back
             </Text>

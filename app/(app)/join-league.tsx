@@ -40,7 +40,7 @@ export default function JoinLeague() {
     });
 
     Alert.alert('Success!', 'You joined the league.');
-    router.replace('/(tabs)/leaderboard');
+    router.replace('/(app)/(tabs)/leaderboard');
   }
 
   return (

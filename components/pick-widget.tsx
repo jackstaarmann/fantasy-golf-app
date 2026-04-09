@@ -288,7 +288,7 @@ export default function PickWidget({
               styles.historyLink,
               { color: themeColors.text + "99" }
             ]}
-            onPress={() => router.push("/pick-history")} // ✅ correct Expo Router navigation
+            onPress={() => router.push("../pick-history")} // ✅ correct Expo Router navigation
           >
             View History →
           </Text>

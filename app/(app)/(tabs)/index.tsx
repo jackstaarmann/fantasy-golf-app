@@ -4,11 +4,12 @@ import LeaderboardWidget from "@/components/leaderboard-widget";
 import NewsWidget from "@/components/news-widget";
 
 import supabase from "@/supabase";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAuth } from "../providers/AuthProvider";
+import { useAuth } from "../../providers/AuthProvider";
 
 // Logout icon
 import LogoutIcon from "@/assets/images/logout-button.png";
@@ -25,31 +26,39 @@ export default function HomePage() {
   const [leagueId, setLeagueId] = useState<string | null>(null);
 
   // ---------------------------------------------------------
-  // Load tournament + user pick + league
+  // Load tournament + user pick + league (runs on focus, not mount)
   // ---------------------------------------------------------
-  useEffect(() => {
-    async function load() {
-      if (!user) return;
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
 
-      const tournament = await getActiveTournament();
-      if (!tournament) return;
+      async function load() {
+        if (!user || !isActive) return;
 
-      setTournamentId(Number(tournament.id));
+        const tournament = await getActiveTournament();
+        if (!tournament || !isActive) return;
 
-      const pick = await getUserPick(user.id, String(tournament.id));
-      setGolferId(pick?.golfer_id ?? null);
+        setTournamentId(Number(tournament.id));
 
-      const { data: league } = await supabase
-        .from("league_members")
-        .select("league_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+        const pick = await getUserPick(user.id, String(tournament.id));
+        if (isActive) setGolferId(pick?.golfer_id ?? null);
 
-      setLeagueId(league?.league_id ?? null);
-    }
+        const { data: league } = await supabase
+          .from("league_members")
+          .select("league_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-    load();
-  }, [user]);
+        if (isActive) setLeagueId(league?.league_id ?? null);
+      }
+
+      load();
+
+      return () => {
+        isActive = false;
+      };
+    }, [user])
+  );
 
   // ---------------------------------------------------------
   // Logout

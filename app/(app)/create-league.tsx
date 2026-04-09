@@ -57,7 +57,7 @@ export default function CreateLeague() {
       if (memberError) throw memberError;
 
       router.replace({
-        pathname: '/(tabs)/leaderboard',
+        pathname: '/(app)/(tabs)/leaderboard',
         params: { leagueId: league.id, inviteCode: league.invite_code },
       });
 

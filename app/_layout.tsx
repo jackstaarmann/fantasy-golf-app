@@ -1,10 +1,9 @@
+import AuthProvider, { useAuth } from "@/app/providers/AuthProvider";
+import { ThemeProvider } from "@/app/providers/ThemeProvider";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
-
-import { ThemeProvider, useTheme } from "@/app/providers/ThemeProvider";
-import AuthProvider, { useAuth } from "./providers/AuthProvider";
 
 function NavigationGuard() {
   const { session, loading } = useAuth();
@@ -15,29 +14,15 @@ function NavigationGuard() {
     if (loading) return;
 
     const root = segments[0];
+    const isPublic = root === "(auth)";
 
-    const publicScreens = ["login"];
-    const extraAuthScreens = [
-      "pga-leaderboard",
-      "rules",
-      "all-news",
-      "join-league",
-      "create-league",
-      "pick-history",
-      "app",
-    ];
-
-    const inTabsGroup = root === "(tabs)";
-    const isPublic = publicScreens.includes(root);
-    const isExtraAuth = extraAuthScreens.includes(root);
-
-    if (!session) {
-      if (!isPublic) router.replace("/login");
+    if (!session && !isPublic) {
+      router.replace("/(auth)/login");
       return;
     }
 
-    if (!inTabsGroup && !isExtraAuth) {
-      router.replace("/(tabs)");
+    if (session && isPublic) {
+      router.replace("/(app)/(tabs)");
     }
   }, [session, loading, segments]);
 
@@ -49,26 +34,14 @@ function NavigationGuard() {
     );
   }
 
-  return <Slot />; // ⭐ Slot is now directly under ThemeProvider → re-renders on theme change
-}
-
-function ThemedStatusBar() {
-  const { theme, themeColors } = useTheme();
-
-  return (
-    <StatusBar
-      style={theme === "dark" ? "light" : "dark"}
-      backgroundColor={themeColors.background}
-      translucent={false}
-    />
-  );
+  return <Slot />;
 }
 
 export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <ThemedStatusBar />
+        <StatusBar style="auto" />
         <NavigationGuard />
       </ThemeProvider>
     </AuthProvider>

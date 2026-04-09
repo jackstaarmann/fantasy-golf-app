@@ -1,8 +1,9 @@
+// app/(app)/(tabs)/_layout.tsx
+import { Colors } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { useColorScheme } from 'react-native';
-import { Colors } from '../../constants/theme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -12,12 +13,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-
-        // ⭐ Explicit, high‑contrast colors
         tabBarActiveTintColor: colorScheme === "dark" ? "#fff" : "#007AFF",
         tabBarInactiveTintColor: colorScheme === "dark" ? "#888" : "#8e8e93",
-
-        // ⭐ Clean background for both themes
         tabBarStyle: {
           backgroundColor: themeColors.background,
           borderTopColor: colorScheme === "dark" ? "#333" : "#e0e0e0",

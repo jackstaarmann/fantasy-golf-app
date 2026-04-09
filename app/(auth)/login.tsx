@@ -1,3 +1,4 @@
+import { useAuth } from '@/app/providers/AuthProvider';
 import { useTheme } from "@/app/providers/ThemeProvider";
 import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
@@ -11,7 +12,6 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useAuth } from './providers/AuthProvider';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -23,7 +23,7 @@ export default function LoginScreen() {
 
   async function playGolfSound() {
     const { sound } = await Audio.Sound.createAsync(
-      require('../assets/images/sounds/golf-hit.mp3')   // correct path
+      require('../../assets/images/sounds/golf-hit.mp3')   // correct path
     );
     await sound.playAsync();
   }
@@ -35,7 +35,7 @@ export default function LoginScreen() {
       Alert.alert('Login failed', error.message);
     } else if (data.session) {
       await playGolfSound();   // play sound on success
-      router.replace('/(tabs)');
+      router.replace('/(app)/(tabs)');
     }
   };
 
@@ -44,7 +44,7 @@ export default function LoginScreen() {
 
       {/* App Icon */}
       <Image 
-        source={require('../assets/images/Swing.png')}
+        source={require('../../assets/images/Swing.png')}
         style={styles.icon}
       />
 
