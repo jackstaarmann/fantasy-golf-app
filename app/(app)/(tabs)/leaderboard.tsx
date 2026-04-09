@@ -19,7 +19,7 @@ type LeaderboardUser = {
   name: string | null;
   team_name: string | null;
   email: string;
-  total_points: number;
+  total_points: number;   // live_total OR projected_total depending on mode
   movement?: number;
 };
 
@@ -29,7 +29,6 @@ export default function LeaderboardScreen() {
 
   const [activeTab, setActiveTab] = useState<'global' | 'league'>('global');
 
-  // NEW: Cached leaderboards
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardUser[]>([]);
   const [leagueLeaderboard, setLeagueLeaderboard] = useState<LeaderboardUser[]>([]);
 
@@ -167,11 +166,9 @@ export default function LeaderboardScreen() {
         (a, b) => b.total_points - a.total_points
       );
 
-      // Cache results
       if (tab === 'global') setGlobalLeaderboard(sorted);
       else setLeagueLeaderboard(sorted);
 
-      // Cache profiles for projected standings
       const map = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]));
       setProfileMap(map);
 
@@ -217,7 +214,7 @@ export default function LeaderboardScreen() {
           name: profile?.name ?? "Unknown",
           team_name: profile?.team_name ?? null,
           email: profile?.email ?? "",
-          total_points: p.projected_total ?? 0,
+          total_points: p.projected_total,   // <-- FIXED
           movement: p.movement ?? 0,
         };
       });

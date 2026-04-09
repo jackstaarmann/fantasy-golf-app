@@ -8,6 +8,7 @@ import {
   Modal,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -59,6 +60,9 @@ export default function PicksScreen() {
   const [loadingField, setLoadingField] = useState(true);
 
   const [pickerModalVisible, setPickerModalVisible] = useState(false);
+
+  // NEW: Search bar state
+  const [searchQuery, setSearchQuery] = useState("");
 
   // -------------------------
   // Fetch current user
@@ -164,9 +168,6 @@ export default function PicksScreen() {
 
     setUserPick(userPickRaw ? withName(userPickRaw) : null);
 
-    // -------------------------
-    // FIXED: Only fetch picks from THIS league
-    // -------------------------
     const { data: leagueRaw } = await supabase
       .from('picks')
       .select(`
@@ -176,7 +177,7 @@ export default function PicksScreen() {
         users: user_id ( team_name, name, email )
       `)
       .eq('tournament_id', tournament.id)
-      .eq('league_id', userLeagueId)   // <-- THE FIX
+      .eq('league_id', userLeagueId)
       .returns<Pick[]>();
 
     setLeaguePicks((leagueRaw ?? []).map(withName));
@@ -205,11 +206,15 @@ export default function PicksScreen() {
   // -------------------------
   // Picker
   // -------------------------
-  const openPicker = () => setPickerModalVisible(true);
+  const openPicker = () => {
+    setSearchQuery(""); // reset search each time
+    setPickerModalVisible(true);
+  };
 
   const submitPick = async (golfer: LeaderboardPlayer) => {
     if (!currentUser || !tournament || !tournament.is_open_for_picks) return;
 
+    // Optimistic UI update
     setUserPick((prev) => ({
       id: prev?.id ?? 0,
       user_id: currentUser.id,
@@ -228,6 +233,7 @@ export default function PicksScreen() {
 
     setPickerModalVisible(false);
 
+    // Persist to DB
     await supabase.from('picks').upsert(
       {
         user_id: currentUser.id,
@@ -238,7 +244,8 @@ export default function PicksScreen() {
       { onConflict: 'user_id,tournament_id' }
     );
 
-    fetchPicksAndLeaderboard();
+    // ❌ Removed full-screen reload
+    // fetchPicksAndLeaderboard();
   };
 
   // -------------------------
@@ -263,6 +270,11 @@ export default function PicksScreen() {
     );
   }
 
+  // Filter golfers by search
+  const filteredLeaderboard = leaderboard.filter((g) =>
+    g.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
 
@@ -279,7 +291,7 @@ export default function PicksScreen() {
           style={[
             styles.makePickButton,
             {
-              backgroundColor: userPick ? "#FFA500" : themeColors.tint,
+              backgroundColor: userPick ? "#0E734A" : themeColors.tint,
             },
           ]}
           onPress={openPicker}
@@ -400,6 +412,25 @@ export default function PicksScreen() {
             Select a Golfer
           </Text>
 
+          {/* Search Bar */}
+          <TextInput
+            placeholder="Search golfers..."
+            placeholderTextColor={themeColors.text + "66"}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+              fontSize: 16,
+              color: themeColors.text,
+              backgroundColor: themeColors.background,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: themeColors.border + "55",
+              marginBottom: 12,
+            }}
+          />
+
           {!tournament.is_open_for_picks || leaderboard.length === 0 ? (
             <View style={{ marginTop: 40, alignItems: 'center' }}>
               <Text style={{ fontSize: 16, color: themeColors.text + "99", textAlign: 'center', paddingHorizontal: 20 }}>
@@ -411,7 +442,7 @@ export default function PicksScreen() {
             </View>
           ) : (
             <FlatList
-              data={leaderboard}
+              data={filteredLeaderboard}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
