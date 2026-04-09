@@ -19,7 +19,7 @@ type LeaderboardUser = {
   name: string | null;
   team_name: string | null;
   email: string;
-  total_points: number;   // live_total OR projected_total depending on mode
+  total_points: number;
   movement?: number;
 };
 
@@ -214,7 +214,7 @@ export default function LeaderboardScreen() {
           name: profile?.name ?? "Unknown",
           team_name: profile?.team_name ?? null,
           email: profile?.email ?? "",
-          total_points: p.projected_total,   // <-- FIXED
+          total_points: p.projected_total,
           movement: p.movement ?? 0,
         };
       });
@@ -400,6 +400,7 @@ export default function LeaderboardScreen() {
                     {index + 1}
                   </Text>
 
+                  {/* Username (no golfer modal wiring) */}
                   <Text style={[styles.username, { color: themeColors.text }]}>
                     {displayName}
                   </Text>

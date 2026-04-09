@@ -12,6 +12,8 @@ import {
   View
 } from "react-native";
 
+import PlayerBioModal from "@/components/player-bio-modal"; // ← modal import
+
 export default function LeaderboardWidget() {
   const router = useRouter();
   const { themeColors } = useTheme();
@@ -20,6 +22,10 @@ export default function LeaderboardWidget() {
   const [loading, setLoading] = useState(true);
   const [tournamentId, setTournamentId] = useState<number | null>(null);
   const [timezone, setTimezone] = useState<string | null>(null);
+
+  // NEW: modal state
+  const [selectedGolferId, setSelectedGolferId] = useState<number | null>(null);
+  const [showBio, setShowBio] = useState(false);
 
   const formatToPar = (n: number) => {
     if (n === 0) return "E";
@@ -48,7 +54,7 @@ export default function LeaderboardWidget() {
   }
 
   // -----------------------------
-  // Fetch correct tournament (5-STATE LOGIC)
+  // Fetch correct tournament
   // -----------------------------
   async function loadTournament() {
     const { data } = await supabase
@@ -120,18 +126,12 @@ export default function LeaderboardWidget() {
     init();
   }, []);
 
-  // -----------------------------
-  // Reload timezone when screen regains focus
-  // -----------------------------
   useFocusEffect(
     React.useCallback(() => {
       loadUserTimezone();
     }, [])
   );
 
-  // -----------------------------
-  // Load leaderboard on tournament change
-  // -----------------------------
   useEffect(() => {
     if (!tournamentId) return;
 
@@ -141,7 +141,6 @@ export default function LeaderboardWidget() {
     return () => clearInterval(interval);
   }, [tournamentId]);
 
-  // Determine the actual current round from the field
   const currentRound =
     players.length > 0
       ? Math.max(...players.map((p) => p.round ?? 1))
@@ -221,24 +220,20 @@ export default function LeaderboardWidget() {
               const playerRound = p.round ?? 0;
               const teeTime = p.teeTime ?? "";
 
-              // Player is in this round but has not started yet
               if (playerRound === currentRound && p.thru === 0 && teeTime) {
                 return formatTimeWithTimezone(teeTime, timezone ?? "");
               }
 
-              // Player has not reached this round yet
               if (playerRound < currentRound) {
                 return teeTime
                   ? formatTimeWithTimezone(teeTime, timezone ?? "")
                   : "TBD";
               }
 
-              // Actively playing
               if (playerRound === currentRound) {
                 return p.thru === 18 ? "F" : p.thru;
               }
 
-              // Future rounds
               return "-";
             })();
 
@@ -253,15 +248,25 @@ export default function LeaderboardWidget() {
                   borderColor: themeColors.border,
                 }}
               >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    color: themeColors.text,
-                    flex: 1,
+                <Pressable
+                  onPress={() => {
+                    setSelectedGolferId(Number(p.id));   // ← correct ID
+                    setShowBio(true);
                   }}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    opacity: pressed ? 0.5 : 1,
+                  })}
                 >
-                  {p.rank}. {p.name}
-                </Text>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      color: themeColors.text,
+                    }}
+                  >
+                    {p.rank}. {p.name}
+                  </Text>
+                </Pressable>
 
                 <Text
                   style={{
@@ -301,14 +306,12 @@ export default function LeaderboardWidget() {
         </>
       )}
 
-      {/* No tournament at all */}
       {!loading && !tournamentId && (
         <Text style={{ color: themeColors.text + "99", marginTop: 4 }}>
           Leaderboard will appear when tee times are posted.
         </Text>
       )}
 
-      {/* Button */}
       <Pressable
         onPressIn={() => router.push("/pga-leaderboard")}
         style={{
@@ -329,6 +332,14 @@ export default function LeaderboardWidget() {
           View Full Leaderboard
         </Text>
       </Pressable>
+
+      {/* PLAYER BIO MODAL */}
+      <PlayerBioModal
+        visible={showBio}
+        golferId={selectedGolferId}
+        onClose={() => setShowBio(false)}
+        themeColors={themeColors}
+      />
     </View>
   );
 }

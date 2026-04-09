@@ -258,3 +258,30 @@ export function usePickSummary(
 
   return { data, loading };
 }
+
+// ---------------------------------------------------------
+// Get Golfer Bio (Edge Function)
+// ---------------------------------------------------------
+export async function getGolferBio(golferId: number) {
+  const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/get-golfer-bio`;
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ golfer_id: golferId }),
+  });
+
+  if (!res.ok) {
+    console.error("getGolferBio failed:", res.status);
+    return null;
+  }
+
+  return res.json();
+}

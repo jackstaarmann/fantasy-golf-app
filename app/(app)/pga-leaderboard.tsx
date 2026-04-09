@@ -4,6 +4,7 @@ import {
 } from "@/api";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useTheme } from "@/app/providers/ThemeProvider";
+import PlayerBioModal from "@/components/player-bio-modal";
 import supabase from "@/supabase";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
@@ -30,6 +31,10 @@ export default function PGALeaderboard() {
   const [tournamentName, setTournamentName] = useState("Leaderboard");
   const [timezone, setTimezone] = useState<string | null>(null);
   const [tournament, setTournament] = useState<any>(null);
+
+  // Modal state
+  const [selectedGolferId, setSelectedGolferId] = useState<number | null>(null);
+  const [showBio, setShowBio] = useState(false);
 
   if (!user) {
     return (
@@ -199,7 +204,7 @@ export default function PGALeaderboard() {
       : []),
     ...projectedCut,
     ...cutPlayers,
-    ...wdPlayers, // WD at bottom, no divider
+    ...wdPlayers,
   ];
 
   const cutLabel = cutIsOfficial ? "CUT" : "PROJECTED CUT";
@@ -328,65 +333,79 @@ export default function PGALeaderboard() {
           const todayDisplay = isWD || isCut ? "-" : formatToPar(item.today);
           const thruDisplay = isWD || isCut ? "-" : item.thru === 18 ? "F" : item.thru;
 
-          // WD and CUT both show formatted total score
           const totalDisplay = formatToPar(item.toPar);
 
           return (
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-                borderBottomWidth: 1,
-                borderColor: themeColors.border,
+            <TouchableOpacity
+              onPress={() => {
+                setSelectedGolferId(Number(item.id));  // ← FIXED
+                setShowBio(true);
               }}
             >
-              <Text
+              <View
                 style={{
-                  fontSize: 16,
-                  color: themeColors.text,
-                  flex: 1,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderBottomWidth: 1,
+                  borderColor: themeColors.border,
                 }}
               >
-                {rankDisplay}. {item.name}
-              </Text>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: themeColors.text,
+                    flex: 1,
+                  }}
+                >
+                  {rankDisplay}. {item.name}
+                </Text>
 
-              <Text
-                style={{
-                  width: 40,
-                  textAlign: "center",
-                  fontSize: 16,
-                  color: themeColors.text,
-                }}
-              >
-                {todayDisplay}
-              </Text>
+                <Text
+                  style={{
+                    width: 40,
+                    textAlign: "center",
+                    fontSize: 16,
+                    color: themeColors.text,
+                  }}
+                >
+                  {todayDisplay}
+                </Text>
 
-              <Text
-                style={{
-                  width: 70,
-                  textAlign: "center",
-                  fontSize: 16,
-                  color: themeColors.text,
-                }}
-              >
-                {thruDisplay}
-              </Text>
+                <Text
+                  style={{
+                    width: 70,
+                    textAlign: "center",
+                    fontSize: 16,
+                    color: themeColors.text,
+                  }}
+                >
+                  {thruDisplay}
+                </Text>
 
-              <Text
-                style={{
-                  width: 40,
-                  textAlign: "center",
-                  fontSize: 16,
-                  color: themeColors.text,
-                }}
-              >
-                {totalDisplay}
-              </Text>
-            </View>
+                <Text
+                  style={{
+                    width: 40,
+                    textAlign: "center",
+                    fontSize: 16,
+                    color: themeColors.text,
+                  }}
+                >
+                  {totalDisplay}
+                </Text>
+              </View>
+            </TouchableOpacity>
           );
         }}
+      />
+
+      {/* PLAYER BIO MODAL */}
+      <PlayerBioModal
+        visible={showBio}
+        golferId={selectedGolferId}
+        onClose={() => setShowBio(false)}
+        themeColors={themeColors}
       />
     </SafeAreaView>
   );
