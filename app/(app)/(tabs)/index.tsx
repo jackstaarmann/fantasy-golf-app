@@ -1,7 +1,8 @@
-import { getActiveTournament, getUserPick } from "@/api";
+import { getActiveTournament, getUserPick, getWeatherForEvent } from "@/api";
 import EventWidget from "@/components/event-widget";
 import LeaderboardWidget from "@/components/leaderboard-widget";
 import NewsWidget from "@/components/news-widget";
+import WeatherWidget from "@/components/weather-widget";
 
 import supabase from "@/supabase";
 import { useFocusEffect } from "@react-navigation/native";
@@ -11,10 +12,8 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../providers/AuthProvider";
 
-// Logout icon
-import LogoutIcon from "@/assets/images/logout-button.png";
-
 import { useTheme } from "@/app/providers/ThemeProvider";
+import LogoutIcon from "@/assets/images/logout-button.png";
 
 export default function HomePage() {
   const { session } = useAuth();
@@ -25,8 +24,10 @@ export default function HomePage() {
   const [tournamentId, setTournamentId] = useState<number | null>(null);
   const [leagueId, setLeagueId] = useState<string | null>(null);
 
+  const [weather, setWeather] = useState<any>(null);
+
   // ---------------------------------------------------------
-  // Load tournament + user pick + league (runs on focus, not mount)
+  // Load tournament + user pick + league + weather
   // ---------------------------------------------------------
   useFocusEffect(
     useCallback(() => {
@@ -40,9 +41,11 @@ export default function HomePage() {
 
         setTournamentId(Number(tournament.id));
 
+        // Load user pick
         const pick = await getUserPick(user.id, String(tournament.id));
         if (isActive) setGolferId(pick?.golfer_id ?? null);
 
+        // Load league membership
         const { data: league } = await supabase
           .from("league_members")
           .select("league_id")
@@ -50,6 +53,10 @@ export default function HomePage() {
           .maybeSingle();
 
         if (isActive) setLeagueId(league?.league_id ?? null);
+
+        // Load weather
+        const w = await getWeatherForEvent(String(tournament.id));
+        if (isActive) setWeather(w);
       }
 
       load();
@@ -122,10 +129,13 @@ export default function HomePage() {
         {/* 1️ EVENT WIDGET */}
         <EventWidget />
 
-        {/* 2 LEADERBOARD WIDGET */}
+        {/* 2️ WEATHER WIDGET (NEW) */}
+        <WeatherWidget weather={weather} />
+
+        {/* 3️ LEADERBOARD WIDGET */}
         <LeaderboardWidget />
 
-        {/* 3 NEWS WIDGET */}
+        {/* 4️ NEWS WIDGET */}
         <NewsWidget />
 
       </ScrollView>

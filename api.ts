@@ -285,3 +285,42 @@ export async function getGolferBio(golferId: number) {
 
   return res.json();
 }
+
+export async function getWeatherForEvent(eventId: string) {
+  try {
+    // 1. Fetch event details
+    const eventRes = await fetch(
+      `https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/events/${eventId}?lang=en&region=us`
+    );
+
+    if (!eventRes.ok) return null;
+    const eventJson = await eventRes.json();
+
+    // 2. Weather is inside courses[0].weather
+    const course = eventJson?.courses?.[0];
+    const weatherRef = course?.weather?.$ref;
+
+    if (!weatherRef) {
+      console.warn("No weather ref found in courses for event:", eventId);
+      return null;
+    }
+
+    // 3. Fetch weather data
+    const weatherRes = await fetch(weatherRef);
+    if (!weatherRes.ok) return null;
+
+    const w = await weatherRes.json();
+
+    // 4. Normalize for widget
+    return {
+      temperature: w.temperature ?? null,
+      conditionId: w.conditionId ?? "Unknown",
+      windSpeed: w.windSpeed ?? 0,
+      windDirection: w.windDirection ?? "",
+      precipitation: w.precipitation ?? 0,
+    };
+  } catch (err) {
+    console.error("Weather fetch error:", err);
+    return null;
+  }
+}

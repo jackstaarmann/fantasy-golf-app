@@ -1,3 +1,4 @@
+// --- SAME IMPORTS ---
 import { useTheme } from "@/app/providers/ThemeProvider";
 import supabase from '@/supabase';
 import { router } from 'expo-router';
@@ -61,7 +62,6 @@ export default function PicksScreen() {
 
   const [pickerModalVisible, setPickerModalVisible] = useState(false);
 
-  // NEW: Search bar state
   const [searchQuery, setSearchQuery] = useState("");
 
   // -------------------------
@@ -74,7 +74,7 @@ export default function PicksScreen() {
   }, []);
 
   // -------------------------
-  // Fetch tournament (NEW 5-STATE LOGIC)
+  // Fetch tournament
   // -------------------------
   useEffect(() => {
     const loadTournament = async () => {
@@ -142,7 +142,7 @@ export default function PicksScreen() {
   // Fetch picks + leaderboard
   // -------------------------
   const fetchPicksAndLeaderboard = async () => {
-    if (!currentUser || !tournament) return;
+    if (!currentUser || !tournament || !userLeagueId) return;  /// FIX APPLIED HERE
 
     setLoadingField(true);
 
@@ -177,7 +177,7 @@ export default function PicksScreen() {
         users: user_id ( team_name, name, email )
       `)
       .eq('tournament_id', tournament.id)
-      .eq('league_id', userLeagueId)
+      .eq('league_id', userLeagueId)  /// FIX APPLIED HERE
       .returns<Pick[]>();
 
     setLeaguePicks((leagueRaw ?? []).map(withName));
@@ -185,9 +185,12 @@ export default function PicksScreen() {
     setLoadingField(false);
   };
 
+  /// FIX APPLIED HERE — added userLeagueId to dependencies
   useEffect(() => {
-    if (currentUser && tournament) fetchPicksAndLeaderboard();
-  }, [currentUser, tournament]);
+    if (currentUser && tournament && userLeagueId !== null) {
+      fetchPicksAndLeaderboard();
+    }
+  }, [currentUser, tournament, userLeagueId]);
 
   // -------------------------
   // Quiet leaderboard refresh
@@ -207,14 +210,13 @@ export default function PicksScreen() {
   // Picker
   // -------------------------
   const openPicker = () => {
-    setSearchQuery(""); // reset search each time
+    setSearchQuery("");
     setPickerModalVisible(true);
   };
 
   const submitPick = async (golfer: LeaderboardPlayer) => {
     if (!currentUser || !tournament || !tournament.is_open_for_picks) return;
 
-    // Optimistic UI update
     setUserPick((prev) => ({
       id: prev?.id ?? 0,
       user_id: currentUser.id,
@@ -233,7 +235,6 @@ export default function PicksScreen() {
 
     setPickerModalVisible(false);
 
-    // Persist to DB
     await supabase.from('picks').upsert(
       {
         user_id: currentUser.id,
@@ -243,9 +244,6 @@ export default function PicksScreen() {
       },
       { onConflict: 'user_id,tournament_id' }
     );
-
-    // ❌ Removed full-screen reload
-    // fetchPicksAndLeaderboard();
   };
 
   // -------------------------
@@ -270,7 +268,6 @@ export default function PicksScreen() {
     );
   }
 
-  // Filter golfers by search
   const filteredLeaderboard = leaderboard.filter((g) =>
     g.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -278,14 +275,12 @@ export default function PicksScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
 
-      {/* PickWidget */}
       <PickWidget
         golferId={userPick?.golfer_id ?? null}
         leaderboard={leaderboard}
         tournament={tournament}
       />
 
-      {/* Make/Change Pick */}
       {tournament.is_open_for_picks && (
         <TouchableOpacity
           style={[
@@ -302,7 +297,6 @@ export default function PicksScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Pick Summary Widget */}
       <PickSummaryWidget
         tournamentId={tournament.id}
         inLeague={userInLeague}
@@ -311,7 +305,6 @@ export default function PicksScreen() {
         isOpenForPicks={tournament.is_open_for_picks}
       />
 
-      {/* League membership */}
       {!userInLeague && (
         <View style={{ marginTop: 20 }}>
           <Text style={{ fontSize: 16, marginBottom: 10, color: themeColors.text }}>
@@ -338,7 +331,6 @@ export default function PicksScreen() {
         </View>
       )}
 
-      {/* League Picks */}
       {userInLeague && (
         <>
           {tournament.is_open_for_picks ? (
@@ -402,7 +394,6 @@ export default function PicksScreen() {
         </>
       )}
 
-      {/* Picker Modal */}
       <Modal visible={pickerModalVisible} animationType="slide">
         <SafeAreaView
           style={[styles.modalContainer, { backgroundColor: themeColors.background }]}
@@ -412,7 +403,6 @@ export default function PicksScreen() {
             Select a Golfer
           </Text>
 
-          {/* Search Bar */}
           <TextInput
             placeholder="Search golfers..."
             placeholderTextColor={themeColors.text + "66"}
