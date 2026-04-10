@@ -2,8 +2,9 @@
 import { getActiveTournament, getProjectedSeasonStandings } from '@/api';
 import { useTheme } from "@/app/providers/ThemeProvider";
 import supabase from '@/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -31,7 +32,6 @@ export default function LeaderboardScreen() {
 
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardUser[]>([]);
   const [leagueLeaderboard, setLeagueLeaderboard] = useState<LeaderboardUser[]>([]);
-
   const [projected, setProjected] = useState<LeaderboardUser[]>([]);
   const [showProjected, setShowProjected] = useState(false);
 
@@ -42,9 +42,7 @@ export default function LeaderboardScreen() {
 
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [leagueName, setLeagueName] = useState<string | null>(null);
-
-  const [showCodeModal, setShowCodeModal] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [isCommissioner, setIsCommissioner] = useState(false);
 
   const [profileMap, setProfileMap] = useState<Record<string, any>>({});
 
@@ -65,30 +63,33 @@ export default function LeaderboardScreen() {
 
     supabase
       .from('league_members')
-      .select('league_id')
+      .select('league_id, commissioner_status')
       .eq('user_id', userId)
       .maybeSingle()
       .then(({ data }) => {
         setLeagueId(data?.league_id ?? null);
+        setIsCommissioner(data?.commissioner_status ?? false);
       });
   }, [userId]);
 
   // -----------------------------
-  // Load league info
+  // Refresh league info on screen focus
   // -----------------------------
-  useEffect(() => {
-    if (!leagueId) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!leagueId) return;
 
-    supabase
-      .from('leagues')
-      .select('invite_code, name')
-      .eq('id', leagueId)
-      .maybeSingle()
-      .then(({ data }) => {
-        setInviteCode(data?.invite_code ?? null);
-        setLeagueName(data?.name ?? null);
-      });
-  }, [leagueId]);
+      supabase
+        .from('leagues')
+        .select('invite_code, name')
+        .eq('id', leagueId)
+        .maybeSingle()
+        .then(({ data }) => {
+          setInviteCode(data?.invite_code ?? null);
+          setLeagueName(data?.name ?? null);
+        });
+    }, [leagueId])
+  );
 
   // -----------------------------
   // Load active tournament
@@ -100,20 +101,20 @@ export default function LeaderboardScreen() {
   }, []);
 
   // -----------------------------
-  // Fetch leaderboard (cached)
+  // Fetch leaderboard
   // -----------------------------
   async function fetchLeaderboard(tab: 'global' | 'league') {
     setLoading(true);
 
     try {
-      let userIdsToInclude: string[] = [];
+      let userIds: string[] = [];
 
       if (tab === 'global') {
         const { data: profiles } = await supabase
           .from('users')
           .select('id');
 
-        userIdsToInclude = profiles?.map((p) => p.id) ?? [];
+        userIds = profiles?.map((p) => p.id) ?? [];
       } else {
         if (!leagueId) {
           setLeagueLeaderboard([]);
@@ -126,12 +127,13 @@ export default function LeaderboardScreen() {
           .select('user_id')
           .eq('league_id', leagueId);
 
-        userIdsToInclude = members?.map((m) => m.user_id) ?? [];
+        userIds = members?.map((m) => m.user_id) ?? [];
       }
 
-      if (userIdsToInclude.length === 0) {
-        if (tab === 'global') setGlobalLeaderboard([]);
-        else setLeagueLeaderboard([]);
+      if (userIds.length === 0) {
+        tab === 'global'
+          ? setGlobalLeaderboard([])
+          : setLeagueLeaderboard([]);
         setLoading(false);
         return;
       }
@@ -139,12 +141,12 @@ export default function LeaderboardScreen() {
       const { data: profiles } = await supabase
         .from('users')
         .select('id, name, team_name, email')
-        .in('id', userIdsToInclude);
+        .in('id', userIds);
 
       const { data: picks } = await supabase
         .from('picks')
         .select('user_id, points')
-        .in('user_id', userIdsToInclude);
+        .in('user_id', userIds);
 
       const totals: Record<string, LeaderboardUser> = {};
 
@@ -169,20 +171,20 @@ export default function LeaderboardScreen() {
       if (tab === 'global') setGlobalLeaderboard(sorted);
       else setLeagueLeaderboard(sorted);
 
-      const map = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]));
-      setProfileMap(map);
+      setProfileMap(Object.fromEntries((profiles ?? []).map((p) => [p.id, p])));
 
     } catch (err) {
       console.error('Leaderboard error:', err);
-      if (tab === 'global') setGlobalLeaderboard([]);
-      else setLeagueLeaderboard([]);
+      tab === 'global'
+        ? setGlobalLeaderboard([])
+        : setLeagueLeaderboard([]);
     }
 
     setLoading(false);
   }
 
   // -----------------------------
-  // Load leaderboard only when needed
+  // Load leaderboard when needed
   // -----------------------------
   useEffect(() => {
     if (!userId) return;
@@ -226,9 +228,6 @@ export default function LeaderboardScreen() {
     }
   }
 
-  // -----------------------------
-  // UI HELPERS
-  // -----------------------------
   function renderMovementArrow(movement: number) {
     if (movement > 0) {
       return <Text style={{ color: themeColors.tint, fontWeight: "bold" }}>↑{movement}</Text>;
@@ -295,19 +294,19 @@ export default function LeaderboardScreen() {
 
                 <TouchableOpacity
                   style={[styles.joinButton, { backgroundColor: themeColors.tint }]}
-                  onPress={() => router.push('/join-league')}
+                  onPress={() => router.push('/(app)/create-league')}
                 >
                   <Text style={{ color: themeColors.background, fontWeight: "600" }}>
-                    Join a League
+                    Create a League
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.joinButton, { backgroundColor: themeColors.tint }]}
-                  onPress={() => router.push('/create-league')}
+                  onPress={() => router.push('/(app)/join-league')}
                 >
                   <Text style={{ color: themeColors.background, fontWeight: "600" }}>
-                    Create a League
+                    Join a League
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -327,7 +326,15 @@ export default function LeaderboardScreen() {
                   </Text>
 
                   <TouchableOpacity
-                    onPress={() => setShowSettings(true)}
+                    onPress={() => {
+                      if (!leagueId) return;
+
+                      if (isCommissioner) {
+                        router.push(`/(app)/league-settings-commissioner?leagueId=${leagueId}`);
+                      } else {
+                        router.push(`/(app)/league-settings-member?leagueId=${leagueId}`);
+                      }
+                    }}
                     style={{ padding: 6 }}
                   >
                     <Image
@@ -400,7 +407,6 @@ export default function LeaderboardScreen() {
                     {index + 1}
                   </Text>
 
-                  {/* Username (no golfer modal wiring) */}
                   <Text style={[styles.username, { color: themeColors.text }]}>
                     {displayName}
                   </Text>
@@ -420,79 +426,6 @@ export default function LeaderboardScreen() {
           />
         )}
       </View>
-
-      {/* SETTINGS MODAL */}
-      {showSettings && leagueId && (
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalBox,
-              { backgroundColor: themeColors.card, borderColor: themeColors.border },
-            ]}
-          >
-            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12, color: themeColors.text }}>
-              League Settings
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => {
-                setShowSettings(false);
-                setShowCodeModal(true);
-              }}
-              style={[styles.modalButton, { backgroundColor: themeColors.tint }]}
-            >
-              <Text style={[styles.modalButtonText, { color: themeColors.background }]}>
-                View Invite Code
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setShowSettings(false)}
-              style={[
-                styles.modalButton,
-                { backgroundColor: themeColors.border },
-              ]}
-            >
-              <Text style={[styles.modalButtonText, { color: themeColors.text }]}>
-                Close
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* INVITE CODE MODAL */}
-      {showCodeModal && (
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalBox,
-              { backgroundColor: themeColors.card, borderColor: themeColors.border },
-            ]}
-          >
-            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12, color: themeColors.text }}>
-              Invite Code
-            </Text>
-
-            <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 20, color: themeColors.text }}>
-              {inviteCode}
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => setShowCodeModal(false)}
-              style={[
-                styles.modalButton,
-                { backgroundColor: themeColors.border },
-              ]}
-            >
-              <Text style={[styles.modalButtonText, { color: themeColors.text }]}>
-                Close
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
     </SafeAreaView>
   );
 }
@@ -523,31 +456,5 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 10,
     alignItems: "center",
-  },
-
-  modalOverlay: {
-    position: "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalBox: {
-    width: "80%",
-    padding: 20,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 1,
-  },
-  modalButton: {
-    width: "100%",
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
   },
 });

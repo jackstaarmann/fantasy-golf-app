@@ -10,7 +10,7 @@ import {
   Image,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 function getNextTuesdayAt3AMET(): Date {
@@ -54,6 +54,33 @@ type LeaderInfo = {
   score: string | number | null;
   label?: string;
 };
+
+// ---------------------------
+// TOURNAMENT ROUND DETECTION
+// ---------------------------
+function computeTournamentRound(leaderboard: LeaderboardPlayer[]): number | null {
+  if (!leaderboard || leaderboard.length === 0) return null;
+
+  // Consider only players who have actually started (thru > 0)
+  const active = leaderboard.filter((p) => (p.thru ?? 0) > 0);
+
+  if (active.length === 0) {
+    // No one has started yet → fall back to max round field, or null
+    const maxRound = leaderboard.reduce(
+      (max, p) => Math.max(max, p.round ?? 0),
+      0
+    );
+    return maxRound || null;
+  }
+
+  // Tournament round = highest round any active player is currently playing
+  const maxActiveRound = active.reduce(
+    (max, p) => Math.max(max, p.round ?? 0),
+    0
+  );
+
+  return maxActiveRound || null;
+}
 
 export default function HomeEventWidget() {
   const router = useRouter();
@@ -191,6 +218,11 @@ export default function HomeEventWidget() {
       const leaderboard = await fetchLeaderboard(Number(activeEvent.id));
       if (!leaderboard || leaderboard.length === 0) return;
 
+      // --- tournament-level round detection ---
+      const tournamentRound = computeTournamentRound(leaderboard);
+      setRound(tournamentRound);
+
+      // --- leader selection (unchanged logic, but now independent of round) ---
       const tiedLeaders = leaderboard.filter(
         (p) => p.rank === "1" || p.rank === "T1"
       );
@@ -210,8 +242,6 @@ export default function HomeEventWidget() {
         firstTeeTimeRef.current = first.teeTime;
         setTeeTime(first.teeTime);
       }
-
-      setRound(first.round ?? null);
 
       const athlete = await fetchAthlete(Number(first.id));
 

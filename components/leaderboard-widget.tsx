@@ -12,7 +12,31 @@ import {
   View
 } from "react-native";
 
-import PlayerBioModal from "@/components/player-bio-modal"; // ← modal import
+import PlayerBioModal from "@/components/player-bio-modal";
+
+// -----------------------------
+// TOURNAMENT ROUND DETECTOR
+// -----------------------------
+function computeTournamentRound(players: LeaderboardPlayer[]): number {
+  if (!players || players.length === 0) return 1;
+
+  const active = players.filter((p) => (p.thru ?? 0) > 0);
+
+  if (active.length === 0) {
+    const maxRound = players.reduce(
+      (max, p) => Math.max(max, p.round ?? 0),
+      0
+    );
+    return maxRound || 1;
+  }
+
+  const maxActiveRound = active.reduce(
+    (max, p) => Math.max(max, p.round ?? 0),
+    0
+  );
+
+  return maxActiveRound || 1;
+}
 
 export default function LeaderboardWidget() {
   const router = useRouter();
@@ -22,8 +46,8 @@ export default function LeaderboardWidget() {
   const [loading, setLoading] = useState(true);
   const [tournamentId, setTournamentId] = useState<number | null>(null);
   const [timezone, setTimezone] = useState<string | null>(null);
+  const [currentRound, setCurrentRound] = useState<number>(1);
 
-  // NEW: modal state
   const [selectedGolferId, setSelectedGolferId] = useState<number | null>(null);
   const [showBio, setShowBio] = useState(false);
 
@@ -33,9 +57,6 @@ export default function LeaderboardWidget() {
     return `${n}`;
   };
 
-  // -----------------------------
-  // Load user timezone
-  // -----------------------------
   async function loadUserTimezone() {
     const {
       data: { user },
@@ -53,9 +74,6 @@ export default function LeaderboardWidget() {
     }
   }
 
-  // -----------------------------
-  // Fetch correct tournament
-  // -----------------------------
   async function loadTournament() {
     const { data } = await supabase
       .from("tournaments")
@@ -100,14 +118,17 @@ export default function LeaderboardWidget() {
     }
   }
 
-  // -----------------------------
-  // Fetch leaderboard
-  // -----------------------------
   async function loadLeaderboard() {
     if (!tournamentId) return;
 
     try {
       const data = await fetchLeaderboard(tournamentId);
+
+      // compute round from FULL field
+      const round = computeTournamentRound(data);
+      setCurrentRound(round);
+
+      // only show top 5
       setPlayers(data.slice(0, 5));
       setLoading(false);
     } catch (err) {
@@ -115,9 +136,6 @@ export default function LeaderboardWidget() {
     }
   }
 
-  // -----------------------------
-  // Initial load
-  // -----------------------------
   useEffect(() => {
     async function init() {
       await loadUserTimezone();
@@ -140,11 +158,6 @@ export default function LeaderboardWidget() {
 
     return () => clearInterval(interval);
   }, [tournamentId]);
-
-  const currentRound =
-    players.length > 0
-      ? Math.max(...players.map((p) => p.round ?? 1))
-      : 1;
 
   return (
     <View
@@ -220,10 +233,6 @@ export default function LeaderboardWidget() {
               const playerRound = p.round ?? 0;
               const teeTime = p.teeTime ?? "";
 
-              if (playerRound === currentRound && p.thru === 0 && teeTime) {
-                return formatTimeWithTimezone(teeTime, timezone ?? "");
-              }
-
               if (playerRound < currentRound) {
                 return teeTime
                   ? formatTimeWithTimezone(teeTime, timezone ?? "")
@@ -231,7 +240,11 @@ export default function LeaderboardWidget() {
               }
 
               if (playerRound === currentRound) {
-                return p.thru === 18 ? "F" : p.thru;
+                if (p.thru === 18) return "F";
+                if (p.thru === 0 && teeTime) {
+                  return formatTimeWithTimezone(teeTime, timezone ?? "");
+                }
+                return p.thru;
               }
 
               return "-";
@@ -250,7 +263,7 @@ export default function LeaderboardWidget() {
               >
                 <Pressable
                   onPress={() => {
-                    setSelectedGolferId(Number(p.id));   // ← correct ID
+                    setSelectedGolferId(Number(p.id));
                     setShowBio(true);
                   }}
                   style={({ pressed }) => ({
@@ -333,7 +346,6 @@ export default function LeaderboardWidget() {
         </Text>
       </Pressable>
 
-      {/* PLAYER BIO MODAL */}
       <PlayerBioModal
         visible={showBio}
         golferId={selectedGolferId}

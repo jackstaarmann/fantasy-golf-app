@@ -13,17 +13,26 @@ function NavigationGuard() {
   useEffect(() => {
     if (loading) return;
 
-    const root = segments[0];
-    const isPublic = root === "(auth)";
+    const root = segments[0];      // "(app)" or "(auth)"
+    const sub = segments[1];       // "(tabs)" or undefined
 
-    if (!session && !isPublic) {
-      router.replace("/(auth)/login");
+    const isAuthGroup = root === "(auth)";
+    const isTabsGroup = sub === "(tabs)";
+
+    // Not logged in → only allow (auth)
+    if (!session) {
+      if (!isAuthGroup) {
+        router.replace("/(auth)/login");
+      }
       return;
     }
 
-    if (session && isPublic) {
+    // Logged in → block access to (auth)
+    if (session && isAuthGroup) {
       router.replace("/(app)/(tabs)");
+      return;
     }
+
   }, [session, loading, segments]);
 
   if (loading) {

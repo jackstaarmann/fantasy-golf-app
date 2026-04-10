@@ -18,6 +18,48 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+// -----------------------------
+// FORMAT TEE TIME
+// -----------------------------
+function formatTeeTime(iso: string | null, timezone: string | null) {
+  if (!iso) return null;
+
+  try {
+    const date = new Date(iso);
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: timezone ?? "UTC",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+// -----------------------------
+// TOURNAMENT ROUND DETECTION
+// -----------------------------
+function computeTournamentRound(players: LeaderboardPlayer[]): number {
+  if (!players || players.length === 0) return 1;
+
+  const active = players.filter((p) => (p.thru ?? 0) > 0);
+
+  if (active.length === 0) {
+    const maxRound = players.reduce(
+      (max, p) => Math.max(max, p.round ?? 0),
+      0
+    );
+    return maxRound || 1;
+  }
+
+  const maxActiveRound = active.reduce(
+    (max, p) => Math.max(max, p.round ?? 0),
+    0
+  );
+
+  return maxActiveRound || 1;
+}
+
 export default function PGALeaderboard() {
   const router = useRouter();
   const { session } = useAuth();
@@ -154,9 +196,7 @@ export default function PGALeaderboard() {
   // -----------------------------
 
   const tournamentRound =
-    players.length > 0
-      ? Math.max(...players.map((p) => p.round ?? 1))
-      : 1;
+    players.length > 0 ? computeTournamentRound(players) : 1;
 
   const currentRound = tournamentRound;
 
@@ -331,14 +371,42 @@ export default function PGALeaderboard() {
             : item.rank;
 
           const todayDisplay = isWD || isCut ? "-" : formatToPar(item.today);
-          const thruDisplay = isWD || isCut ? "-" : item.thru === 18 ? "F" : item.thru;
+
+          // -----------------------------
+          // THRU DISPLAY WITH ROUND-AWARE TEE TIME
+          // -----------------------------
+          let thruDisplay: string | number | null;
+
+          if (isWD || isCut) {
+            thruDisplay = "-";
+          } else {
+            const playerRound = item.round ?? 0;
+
+            if (playerRound < currentRound) {
+              // Player has finished their last round and not yet started currentRound → show tee time
+              thruDisplay = item.teeTime
+                ? formatTeeTime(item.teeTime, timezone)
+                : "-";
+            } else if (playerRound === currentRound) {
+              if (item.thru === 18) {
+                thruDisplay = "F";
+              } else if (item.thru === 0 && item.teeTime) {
+                thruDisplay = formatTeeTime(item.teeTime, timezone);
+              } else {
+                thruDisplay = item.thru;
+              }
+            } else {
+              // Player somehow ahead of currentRound (shouldn't really happen)
+              thruDisplay = "-";
+            }
+          }
 
           const totalDisplay = formatToPar(item.toPar);
 
           return (
             <TouchableOpacity
               onPress={() => {
-                setSelectedGolferId(Number(item.id));  // ← FIXED
+                setSelectedGolferId(Number(item.id));
                 setShowBio(true);
               }}
             >
