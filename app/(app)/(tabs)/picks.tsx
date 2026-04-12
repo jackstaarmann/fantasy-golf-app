@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Modal,
   StyleSheet,
   Text,
@@ -142,7 +143,7 @@ export default function PicksScreen() {
   // Fetch picks + leaderboard
   // -------------------------
   const fetchPicksAndLeaderboard = async () => {
-    if (!currentUser || !tournament || !userLeagueId) return;  /// FIX APPLIED HERE
+    if (!currentUser || !tournament || !userLeagueId) return;
 
     setLoadingField(true);
 
@@ -177,7 +178,7 @@ export default function PicksScreen() {
         users: user_id ( team_name, name, email )
       `)
       .eq('tournament_id', tournament.id)
-      .eq('league_id', userLeagueId)  /// FIX APPLIED HERE
+      .eq('league_id', userLeagueId)
       .returns<Pick[]>();
 
     setLeaguePicks((leagueRaw ?? []).map(withName));
@@ -185,7 +186,6 @@ export default function PicksScreen() {
     setLoadingField(false);
   };
 
-  /// FIX APPLIED HERE — added userLeagueId to dependencies
   useEffect(() => {
     if (currentUser && tournament && userLeagueId !== null) {
       fetchPicksAndLeaderboard();
@@ -388,6 +388,14 @@ export default function PicksScreen() {
                     </View>
                   );
                 }}
+                ListFooterComponent={
+                  <View style={{ alignItems: 'center', marginTop: 20 }}>
+                    <Image
+                      source={require('../../../assets/images/Swing.png')}
+                      style={{ width: 140, height: 140, resizeMode: 'contain', opacity: 0.9 }}
+                    />
+                  </View>
+                }
               />
             </>
           )}

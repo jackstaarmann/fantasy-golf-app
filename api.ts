@@ -16,6 +16,19 @@ export type LeaderboardPlayer = {
   projected_earnings: number;
 };
 
+export type CourseLayout = {
+  totalYards: number;
+  totalPar: number;
+  parIn: number;
+  parOut: number;
+  holes: {
+    number: number;
+    par: number;
+    yardage: number;
+  }[];
+};
+
+
 // ---------------------------------------------------------
 // Fetch Leaderboard (Edge Function)
 // ---------------------------------------------------------
@@ -323,4 +336,28 @@ export async function getWeatherForEvent(eventId: string) {
     console.error("Weather fetch error:", err);
     return null;
   }
+}
+
+// -----------------------------
+// Tournament Course Layout
+// -----------------------------
+export async function getCourseLayout(tournamentId: string): Promise<CourseLayout> {
+  const res = await fetch(
+    `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/pga-course-layout`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ tournament_id: tournamentId }),
+    }
+  );
+
+  if (!res.ok) {
+    console.error("getCourseLayout error:", await res.text());
+    throw new Error("Failed to fetch course layout");
+  }
+
+  return res.json();
 }

@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   FlatList,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -77,6 +78,9 @@ export default function PGALeaderboard() {
   // Modal state
   const [selectedGolferId, setSelectedGolferId] = useState<number | null>(null);
   const [showBio, setShowBio] = useState(false);
+
+  // Search state
+  const [search, setSearch] = useState("");
 
   if (!user) {
     return (
@@ -249,6 +253,18 @@ export default function PGALeaderboard() {
 
   const cutLabel = cutIsOfficial ? "CUT" : "PROJECTED CUT";
 
+  // -----------------------------
+  // SEARCH FILTER
+  // -----------------------------
+  const filteredList = combinedList.filter(
+    (p) =>
+      p.id === "CUT_DIVIDER" ||
+      p.name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // -----------------------------
+  // RENDER
+  // -----------------------------
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
       {/* Header */}
@@ -288,17 +304,38 @@ export default function PGALeaderboard() {
         </Text>
       </View>
 
-      {/* Column Headers */}
+      {/* Column Headers + Search */}
       <View
         style={{
           flexDirection: "row",
-          justifyContent: "flex-end",
+          alignItems: "center",
           paddingVertical: 10,
-          paddingRight: 16,
+          paddingHorizontal: 16,
           borderBottomWidth: 1,
           borderColor: themeColors.border,
         }}
       >
+        {/* SEARCH BAR */}
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search players..."
+          placeholderTextColor={themeColors.text + "66"}
+          style={{
+            flex: 1,
+            marginRight: 12,
+            backgroundColor: themeColors.card,
+            borderWidth: 1,
+            borderColor: themeColors.border,
+            borderRadius: 8,
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            color: themeColors.text,
+            fontSize: 14,
+          }}
+        />
+
+        {/* R# */}
         <Text
           style={{
             width: 40,
@@ -309,6 +346,8 @@ export default function PGALeaderboard() {
         >
           R{currentRound}
         </Text>
+
+        {/* THRU */}
         <Text
           style={{
             width: 70,
@@ -319,6 +358,8 @@ export default function PGALeaderboard() {
         >
           THRU
         </Text>
+
+        {/* TOT */}
         <Text
           style={{
             width: 40,
@@ -333,7 +374,7 @@ export default function PGALeaderboard() {
 
       {/* Full Leaderboard */}
       <FlatList
-        data={combinedList}
+        data={filteredList}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 40 }}
         renderItem={({ item }) => {
@@ -383,7 +424,6 @@ export default function PGALeaderboard() {
             const playerRound = item.round ?? 0;
 
             if (playerRound < currentRound) {
-              // Player has finished their last round and not yet started currentRound → show tee time
               thruDisplay = item.teeTime
                 ? formatTeeTime(item.teeTime, timezone)
                 : "-";
@@ -396,7 +436,6 @@ export default function PGALeaderboard() {
                 thruDisplay = item.thru;
               }
             } else {
-              // Player somehow ahead of currentRound (shouldn't really happen)
               thruDisplay = "-";
             }
           }

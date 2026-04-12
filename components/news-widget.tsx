@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
-    marginTop: 20,
+    marginTop: 0,
   },
   featuredImage: {
     width: "100%",

@@ -26,9 +26,6 @@ export default function HomePage() {
 
   const [weather, setWeather] = useState<any>(null);
 
-  // ---------------------------------------------------------
-  // Load tournament + user pick + league + weather
-  // ---------------------------------------------------------
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -41,11 +38,9 @@ export default function HomePage() {
 
         setTournamentId(Number(tournament.id));
 
-        // Load user pick
         const pick = await getUserPick(user.id, String(tournament.id));
         if (isActive) setGolferId(pick?.golfer_id ?? null);
 
-        // Load league membership
         const { data: league } = await supabase
           .from("league_members")
           .select("league_id")
@@ -54,7 +49,6 @@ export default function HomePage() {
 
         if (isActive) setLeagueId(league?.league_id ?? null);
 
-        // Load weather
         const w = await getWeatherForEvent(String(tournament.id));
         if (isActive) setWeather(w);
       }
@@ -67,9 +61,6 @@ export default function HomePage() {
     }, [user])
   );
 
-  // ---------------------------------------------------------
-  // Logout
-  // ---------------------------------------------------------
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.replace("/login");
@@ -79,7 +70,7 @@ export default function HomePage() {
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
       <ScrollView contentContainerStyle={[styles.container, { backgroundColor: themeColors.background }]}>
 
-        {/* 🔐 Logout Button (Top Left) */}
+        {/* Logout Button */}
         <View style={styles.authButtonContainer}>
           {session ? (
             <Pressable onPress={handleLogout}>
@@ -95,7 +86,7 @@ export default function HomePage() {
           )}
         </View>
 
-        {/* ℹ️ Info Button (Top Right) */}
+        {/* Info Button */}
         <View style={styles.infoButtonContainer}>
           <Pressable onPress={() => router.push("/rules")}>
             <View
@@ -126,17 +117,25 @@ export default function HomePage() {
           Swing by Staarmann
         </Text>
 
-        {/* 1️ EVENT WIDGET */}
-        <EventWidget />
+        {/* EVENT */}
+        <View style={styles.widgetSpacing}>
+          <EventWidget />
+        </View>
 
-        {/* 2️ WEATHER WIDGET (NEW) */}
-        <WeatherWidget weather={weather} />
+        {/* WEATHER */}
+        <View style={styles.widgetSpacing}>
+          <WeatherWidget weather={weather} />
+        </View>
 
-        {/* 3️ LEADERBOARD WIDGET */}
-        <LeaderboardWidget />
+        {/* LEADERBOARD */}
+        <View style={styles.widgetSpacing}>
+          <LeaderboardWidget />
+        </View>
 
-        {/* 4️ NEWS WIDGET */}
-        <NewsWidget />
+        {/* NEWS */}
+        <View style={styles.widgetSpacing}>
+          <NewsWidget />
+        </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -148,6 +147,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     justifyContent: "flex-start",
+  },
+  widgetSpacing: {
+    marginBottom: 0, // 🔥 compact + uniform spacing (matches original top widgets)
   },
   authButtonContainer: {
     position: "absolute",

@@ -13,6 +13,9 @@ import {
   View,
 } from "react-native";
 
+// ---------------------------
+// NEXT TUESDAY CALC
+// ---------------------------
 function getNextTuesdayAt3AMET(): Date {
   const now = new Date();
 
@@ -56,16 +59,14 @@ type LeaderInfo = {
 };
 
 // ---------------------------
-// TOURNAMENT ROUND DETECTION
+// ROUND DETECTION
 // ---------------------------
 function computeTournamentRound(leaderboard: LeaderboardPlayer[]): number | null {
   if (!leaderboard || leaderboard.length === 0) return null;
 
-  // Consider only players who have actually started (thru > 0)
   const active = leaderboard.filter((p) => (p.thru ?? 0) > 0);
 
   if (active.length === 0) {
-    // No one has started yet → fall back to max round field, or null
     const maxRound = leaderboard.reduce(
       (max, p) => Math.max(max, p.round ?? 0),
       0
@@ -73,7 +74,6 @@ function computeTournamentRound(leaderboard: LeaderboardPlayer[]): number | null
     return maxRound || null;
   }
 
-  // Tournament round = highest round any active player is currently playing
   const maxActiveRound = active.reduce(
     (max, p) => Math.max(max, p.round ?? 0),
     0
@@ -82,6 +82,35 @@ function computeTournamentRound(leaderboard: LeaderboardPlayer[]): number | null
   return maxActiveRound || null;
 }
 
+// ---------------------------
+// ROUND COMPLETION DETECTOR
+// ---------------------------
+function isRoundCompleted(
+  leaderboard: LeaderboardPlayer[],
+  round: number
+): boolean {
+  return leaderboard.every(
+    (p) =>
+      p.round === round &&
+      (p.thru === 18 || p.thru === null || p.thru === undefined)
+  );
+}
+
+// ---------------------------
+// ESPN FAKE ROUND 4 FIX
+// ---------------------------
+function isFakeRound4(leaderboard: LeaderboardPlayer[]): boolean {
+  return leaderboard.every(
+    (p) =>
+      p.round === 4 &&
+      p.thru === 18 &&
+      (p.teeTime === null || p.teeTime === undefined)
+  );
+}
+
+// ---------------------------
+// COMPONENT
+// ---------------------------
 export default function HomeEventWidget() {
   const router = useRouter();
   const { themeColors } = useTheme();
@@ -218,11 +247,14 @@ export default function HomeEventWidget() {
       const leaderboard = await fetchLeaderboard(Number(activeEvent.id));
       if (!leaderboard || leaderboard.length === 0) return;
 
-      // --- tournament-level round detection ---
-      const tournamentRound = computeTournamentRound(leaderboard);
-      setRound(tournamentRound);
+      // FIX ESPN FAKE ROUND 4
+      const fakeR4 = isFakeRound4(leaderboard);
 
-      // --- leader selection (unchanged logic, but now independent of round) ---
+      const tournamentRound = computeTournamentRound(leaderboard);
+      const displayRound = fakeR4 ? 3 : tournamentRound;
+
+      setRound(displayRound);
+
       const tiedLeaders = leaderboard.filter(
         (p) => p.rank === "1" || p.rank === "T1"
       );
@@ -256,9 +288,6 @@ export default function HomeEventWidget() {
     }
   }
 
-  // ---------------------------
-  // LOAD ONLY TEE TIME (for up_next)
-  // ---------------------------
   async function loadTeeTimeOnly(activeEvent: any) {
     try {
       const leaderboard = await fetchLeaderboard(Number(activeEvent.id));
@@ -285,9 +314,6 @@ export default function HomeEventWidget() {
     }
   }
 
-  // ---------------------------
-  // DEFENDING CHAMPION
-  // ---------------------------
   async function loadDefendingChampion(activeEvent: any) {
     const meta = await fetchEventMeta(Number(activeEvent.id));
 
@@ -339,8 +365,15 @@ export default function HomeEventWidget() {
     setCountdown(`${days}d ${hours}h ${minutes}m ${label}`);
   }
 
-  const goToPicks = () => {
-    router.push("../picks");
+  // ---------------------------
+  // GO TO TOURNAMENT INFO
+  // ---------------------------
+  const goToTournamentInfo = () => {
+    if (!event?.id) return;
+    router.push({
+      pathname: "/tournament-info",
+      params: { tournamentId: event.id },
+    });
   };
 
   // ---------------------------
@@ -388,12 +421,28 @@ export default function HomeEventWidget() {
   }
 
   // ---------------------------
-  // STATUS TEXT
+  // STATUS TEXT (UPDATED)
   // ---------------------------
   let statusText = "";
 
   if (event.in_progress) {
-    statusText = round ? `Round ${round} in Progress` : "Live Now";
+    const leaderboard = event ? null : null; // placeholder, we compute earlier
+
+    // We already computed round + fake round fix above
+    const completed =
+      round &&
+      event &&
+      event.id &&
+      leader &&
+      leader.score !== null &&
+      leader.score !== undefined &&
+      leader.score !== "";
+
+    if (round && completed) {
+      statusText = `Round ${round} Completed`;
+    } else {
+      statusText = round ? `Round ${round} in Progress` : "Live Now";
+    }
   } else if (event.linger_window) {
     statusText = "Finalizing Results";
   } else if (event.up_next) {
@@ -473,44 +522,29 @@ export default function HomeEventWidget() {
                   {countdown}
                 </Text>
               )}
-
-            {!event.is_completed && (
-              <Text
-                style={{
-                  marginTop: 4,
-                  color: themeColors.text + "99",
-                }}
-              >
-                {userPicks.length === 0
-                  ? "You haven't made your pick yet."
-                  : "Your picks are locked in."}
-              </Text>
-            )}
           </View>
 
-          {(!event.is_completed ||
-            (event.is_completed && countdown !== "")) && (
-            <TouchableOpacity
-              onPress={goToPicks}
+          {/* NEW BUTTON */}
+          <TouchableOpacity
+            onPress={goToTournamentInfo}
+            style={{
+              backgroundColor: themeColors.tint,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 6,
+              alignSelf: "flex-start",
+              marginTop: 12,
+            }}
+          >
+            <Text
               style={{
-                backgroundColor: themeColors.tint,
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-                borderRadius: 6,
-                alignSelf: "flex-start",
-                marginTop: 12,
+                color: themeColors.background,
+                fontWeight: "600",
               }}
             >
-              <Text
-                style={{
-                  color: themeColors.background,
-                  fontWeight: "600",
-                }}
-              >
-                {userPicks.length === 0 ? "Make Picks" : "Go to Picks"}
-              </Text>
-            </TouchableOpacity>
-          )}
+              Tournament Info
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* RIGHT SIDE — Leader / Defending Champ */}
