@@ -14,6 +14,7 @@ import { useAuth } from "../../providers/AuthProvider";
 
 import { useTheme } from "@/app/providers/ThemeProvider";
 import LogoutIcon from "@/assets/images/logout-button.png";
+import SwingFooter from "@/components/SwingFooter"; // ✅ NEW IMPORT
 
 export default function HomePage() {
   const { session } = useAuth();
@@ -137,6 +138,9 @@ export default function HomePage() {
           <NewsWidget />
         </View>
 
+        {/* SWING FOOTER */}
+        <SwingFooter />
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -149,7 +153,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   widgetSpacing: {
-    marginBottom: 0, // 🔥 compact + uniform spacing (matches original top widgets)
+    marginBottom: 0,
   },
   authButtonContainer: {
     position: "absolute",

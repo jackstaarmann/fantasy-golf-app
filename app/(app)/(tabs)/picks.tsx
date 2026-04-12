@@ -6,7 +6,6 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Modal,
   StyleSheet,
   Text,
@@ -21,6 +20,7 @@ import type { LeaderboardPlayer } from '@/api';
 import { fetchLeaderboard } from '@/api';
 import { PickSummaryWidget } from '@/components/pick-summary-widget';
 import PickWidget from '@/components/pick-widget';
+import SwingFooter from "@/components/SwingFooter"; // ✅ NEW IMPORT
 
 type Pick = {
   id: number;
@@ -389,12 +389,7 @@ export default function PicksScreen() {
                   );
                 }}
                 ListFooterComponent={
-                  <View style={{ alignItems: 'center', marginTop: 20 }}>
-                    <Image
-                      source={require('../../../assets/images/Swing.png')}
-                      style={{ width: 140, height: 140, resizeMode: 'contain', opacity: 0.9 }}
-                    />
-                  </View>
+                  <SwingFooter />   // ✅ REUSABLE FOOTER
                 }
               />
             </>
@@ -446,7 +441,7 @@ export default function PicksScreen() {
                 <TouchableOpacity
                   style={[
                     styles.golferItem,
-                    { borderBottomColor: themeColors.border },
+                    { borderBottomWidth: 1, borderBottomColor: themeColors.border },
                   ]}
                   onPress={() =>
                     tournament.is_open_for_picks && submitPick(item)
