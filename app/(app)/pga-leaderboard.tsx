@@ -119,32 +119,43 @@ export default function PGALeaderboard() {
     }
   }
 
-  async function loadTournament() {
-    const { data } = await supabase
-      .from("tournaments")
-      .select("*")
-      .order("activation_time", { ascending: true });
+async function loadTournament() {
+  const { data } = await supabase
+    .from("tournaments")
+    .select("*")
+    .order("activation_time", { ascending: true });
 
-    if (!data || data.length === 0) return;
+  if (!data || data.length === 0) return;
 
-    const inProgress = data.find((t) => t.in_progress);
-    const upNext = data.find((t) => t.up_next);
-    const completed = [...data]
-      .filter((t) => t.is_completed)
-      .sort(
-        (a, b) =>
-          new Date(b.activation_time).getTime() -
-          new Date(a.activation_time).getTime()
-      )[0];
+  // 1. Tournament currently in progress
+  const inProgress = data.find((t) => t.in_progress);
 
-    const event = inProgress || upNext || completed || null;
+  // 2. Tournament in linger window (the one we ALWAYS want to show)
+  const linger = data.find((t) => t.linger_window);
 
-    if (event) {
-      setTournamentId(Number(event.id));
-      setTournamentName(event.name);
-      setTournament(event);
-    }
+  // 3. Tournament up next
+  const upNext = data.find((t) => t.up_next);
+
+  // 4. Most recent completed tournament
+  const completed = [...data]
+    .filter((t) => t.is_completed)
+    .sort(
+      (a, b) =>
+        new Date(b.activation_time).getTime() -
+        new Date(a.activation_time).getTime()
+    )[0];
+
+  // Priority order
+  const event = inProgress || linger || upNext || completed || null;
+
+  if (event) {
+    setTournamentId(Number(event.id));
+    setTournamentName(event.name);
+    setTournament(event);
   }
+}
+
+
 
   async function loadLeaderboard() {
     if (!tournamentId) return;
