@@ -22,7 +22,10 @@ type LeaderboardUser = {
   email: string;
   total_points: number;
   movement?: number;
+  out_of_first?: number;
 };
+
+type LeaderboardMode = 'live' | 'projected' | 'outOfFirst';
 
 export default function LeaderboardScreen() {
   const router = useRouter();
@@ -33,7 +36,7 @@ export default function LeaderboardScreen() {
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardUser[]>([]);
   const [leagueLeaderboard, setLeagueLeaderboard] = useState<LeaderboardUser[]>([]);
   const [projected, setProjected] = useState<LeaderboardUser[]>([]);
-  const [showProjected, setShowProjected] = useState(false);
+  const [mode, setMode] = useState<LeaderboardMode>('live');
 
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -228,22 +231,85 @@ export default function LeaderboardScreen() {
     }
   }
 
+  // -----------------------------
+  // Movement arrow renderer
+  // -----------------------------
   function renderMovementArrow(movement: number) {
     if (movement > 0) {
-      return <Text style={{ color: themeColors.tint, fontWeight: "bold" }}>↑{movement}</Text>;
+      return (
+        <Text style={{ color: themeColors.tint, fontWeight: "bold" }}>
+          ↑{movement}
+        </Text>
+      );
     }
     if (movement < 0) {
-      return <Text style={{ color: "#ff4d4d", fontWeight: "bold" }}>↓{Math.abs(movement)}</Text>;
+      return (
+        <Text style={{ color: "#ff4d4d", fontWeight: "bold" }}>
+          ↓{Math.abs(movement)}
+        </Text>
+      );
     }
-    return <Text style={{ color: themeColors.text + "66" }}>–</Text>;
+    return (
+      <Text style={{ color: themeColors.text + "66" }}>
+        –
+      </Text>
+    );
   }
 
-  const dataToRender =
-    showProjected
-      ? projected
-      : activeTab === 'global'
+  // -----------------------------
+  // Compute $ Out of 1st
+  // -----------------------------
+  function computeOutOfFirst(rows: LeaderboardUser[]) {
+    if (!rows.length) return [];
+    const leader = rows[0].total_points;
+
+    return rows.map((u) => ({
+      ...u,
+      out_of_first: leader - u.total_points,
+    }));
+  }
+
+  // -----------------------------
+  // Cycle toggle mode
+  // -----------------------------
+  function cycleMode() {
+    setMode((prev) => {
+      if (prev === 'live') {
+        fetchProjected();
+        return 'projected';
+      }
+      if (prev === 'projected') {
+        return 'outOfFirst';
+      }
+      return 'live';
+    });
+  }
+
+  // -----------------------------
+  // Select correct dataset
+  // -----------------------------
+  let base =
+    activeTab === 'global'
       ? globalLeaderboard
       : leagueLeaderboard;
+
+  let dataToRender;
+
+  if (mode === 'live') {
+    dataToRender = base;
+  } else if (mode === 'projected') {
+    dataToRender = projected;
+  } else {
+    dataToRender = computeOutOfFirst(base);
+  }
+
+  // -----------------------------
+  // Format money
+  // -----------------------------
+  function formatMoney(n: number | undefined) {
+    if (n === undefined || n === null) return "$0";
+    return `$${n.toLocaleString()}`;
+  }
 
   // -----------------------------
   // RENDER
@@ -261,7 +327,7 @@ export default function LeaderboardScreen() {
               activeTab === 'global' && { borderBottomColor: themeColors.tint }
             ]}
             onPress={() => {
-              setShowProjected(false);
+              setMode('live');
               setActiveTab('global');
             }}
           >
@@ -275,7 +341,7 @@ export default function LeaderboardScreen() {
               activeTab === 'league' && { borderBottomColor: themeColors.tint }
             ]}
             onPress={() => {
-              setShowProjected(false);
+              setMode('live');
               setActiveTab('league');
             }}
           >
@@ -351,11 +417,7 @@ export default function LeaderboardScreen() {
 
                 {/* Toggle */}
                 <TouchableOpacity
-                  onPress={() => {
-                    const next = !showProjected;
-                    setShowProjected(next);
-                    if (next) fetchProjected();
-                  }}
+                  onPress={cycleMode}
                   style={{
                     paddingVertical: 8,
                     paddingHorizontal: 12,
@@ -368,7 +430,9 @@ export default function LeaderboardScreen() {
                   }}
                 >
                   <Text style={{ fontSize: 14, fontWeight: '600', color: themeColors.text }}>
-                    {showProjected ? 'Showing: Projected' : 'Showing: Live'}
+                    {mode === 'live' && 'Showing: Live'}
+                    {mode === 'projected' && 'Showing: Projected'}
+                    {mode === 'outOfFirst' && 'Showing: $ Out of 1st'}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -411,15 +475,21 @@ export default function LeaderboardScreen() {
                     {displayName}
                   </Text>
 
-                  {showProjected && (
+                  {mode === 'projected' && (
                     <View style={{ width: 40, alignItems: "center" }}>
                       {renderMovementArrow(item.movement ?? 0)}
                     </View>
                   )}
 
-                  <Text style={[styles.points, { color: themeColors.text }]}>
-                    {item.total_points}
-                  </Text>
+                  {mode === 'outOfFirst' ? (
+                    <Text style={[styles.points, { color: themeColors.text }]}>
+                      {formatMoney(item.out_of_first)}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.points, { color: themeColors.text }]}>
+                      {formatMoney(item.total_points)}
+                    </Text>
+                  )}
                 </View>
               );
             }}
