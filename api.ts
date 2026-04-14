@@ -16,18 +16,54 @@ export type LeaderboardPlayer = {
   projected_earnings: number;
 };
 
-export type CourseLayout = {
+export interface CourseLayout {
+  courseId: string;
   totalYards: number;
   totalPar: number;
-  parIn: number;
   parOut: number;
+  parIn: number;
+
   holes: {
     number: number;
     par: number;
     yardage: number;
   }[];
-};
 
+  tournamentRoundStats?: {
+    $ref: string;
+  }[];
+}
+
+export interface HoleStats {
+  number: number;
+  par: number;
+  yards: number;
+
+  avgScore: number | null;
+  scoreToPar: number | null;
+  rank: number | null;
+
+  eagles: number;
+  birdies: number;
+  pars: number;
+  bogeys: number;
+  doubleBogeys: number;
+  other: number;
+
+  raw: any;
+}
+
+export interface HoleStatsRound {
+  round: number;
+  available: boolean;
+  holes: HoleStats[];
+}
+
+export interface HoleStatsAllRoundsResponse {
+  tournamentId: string;
+  courseId: string;
+  rounds: HoleStatsRound[];
+}
 
 // ---------------------------------------------------------
 // Fetch Leaderboard (Edge Function)
@@ -74,7 +110,7 @@ export async function fetchEventMeta(eventId: number) {
 }
 
 // ---------------------------------------------------------
-// Get Active Tournament (FINAL 5-STATE LOGIC)
+// Get Active Tournament
 // ---------------------------------------------------------
 export async function getActiveTournament() {
   const { data, error } = await supabase
@@ -84,19 +120,15 @@ export async function getActiveTournament() {
 
   if (error || !data) return null;
 
-  // 1️⃣ In Progress (Thu–Sun)
   const inProgress = data.find(t => t.in_progress === true);
   if (inProgress) return inProgress;
 
-  // 2️⃣ Linger Window (Sun–Tue)
   const lingering = data.find(t => t.linger_window === true);
   if (lingering) return lingering;
 
-  // 3️⃣ Up Next (Tue+)
   const upNext = data.find(t => t.up_next === true);
   if (upNext) return upNext;
 
-  // 4️⃣ Fallback: most recent completed
   const completed = data
     .filter(t => t.is_completed === true)
     .sort(
@@ -197,7 +229,6 @@ export async function getPickSummary(
 ) {
   const { data: { session } } = await supabase.auth.getSession();
 
-  // 🚨 Prevent invalid league calls
   if (mode === "league" && !leagueId) {
     return {
       topPicks: [],
@@ -234,7 +265,6 @@ export async function getPickSummary(
 
   return res.json();
 }
-
 
 // ---------------------------------------------------------
 // NEW: usePickSummary Hook
@@ -299,9 +329,11 @@ export async function getGolferBio(golferId: number) {
   return res.json();
 }
 
+// ---------------------------------------------------------
+// Weather
+// ---------------------------------------------------------
 export async function getWeatherForEvent(eventId: string) {
   try {
-    // 1. Fetch event details
     const eventRes = await fetch(
       `https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/events/${eventId}?lang=en&region=us`
     );
@@ -309,7 +341,6 @@ export async function getWeatherForEvent(eventId: string) {
     if (!eventRes.ok) return null;
     const eventJson = await eventRes.json();
 
-    // 2. Weather is inside courses[0].weather
     const course = eventJson?.courses?.[0];
     const weatherRef = course?.weather?.$ref;
 
@@ -318,13 +349,11 @@ export async function getWeatherForEvent(eventId: string) {
       return null;
     }
 
-    // 3. Fetch weather data
     const weatherRes = await fetch(weatherRef);
     if (!weatherRes.ok) return null;
 
     const w = await weatherRes.json();
 
-    // 4. Normalize for widget
     return {
       temperature: w.temperature ?? null,
       conditionId: w.conditionId ?? "Unknown",
@@ -338,9 +367,9 @@ export async function getWeatherForEvent(eventId: string) {
   }
 }
 
-// -----------------------------
+// ---------------------------------------------------------
 // Tournament Course Layout
-// -----------------------------
+// ---------------------------------------------------------
 export async function getCourseLayout(tournamentId: string): Promise<CourseLayout> {
   const res = await fetch(
     `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/pga-course-layout`,
@@ -360,4 +389,40 @@ export async function getCourseLayout(tournamentId: string): Promise<CourseLayou
   }
 
   return res.json();
+}
+
+// ---------------------------------------------------------
+// UPDATED: Get Hole Stats (ALL ROUNDS)
+// ---------------------------------------------------------
+export async function getHoleStats(
+  tournamentId: string,
+  courseId: string
+): Promise<HoleStatsAllRoundsResponse> {
+  try {
+    const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/get-hole-stats`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tournamentId, courseId }),
+    });
+
+    if (!res.ok) {
+      console.error("getHoleStats error:", res.status);
+      return {
+        tournamentId,
+        courseId,
+        rounds: []
+      };
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("getHoleStats exception:", err);
+    return {
+      tournamentId,
+      courseId,
+      rounds: []
+    };
+  }
 }
