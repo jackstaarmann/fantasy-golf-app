@@ -247,7 +247,6 @@ export default function HomeEventWidget() {
       const leaderboard = await fetchLeaderboard(Number(activeEvent.id));
       if (!leaderboard || leaderboard.length === 0) return;
 
-      // FIX ESPN FAKE ROUND 4
       const fakeR4 = isFakeRound4(leaderboard);
 
       const tournamentRound = computeTournamentRound(leaderboard);
@@ -294,14 +293,11 @@ export default function HomeEventWidget() {
       if (!leaderboard || leaderboard.length === 0) return;
 
       const sorted = leaderboard
-        .filter(
-          (p): p is LeaderboardPlayer & { teeTime: string } =>
-            p.teeTime !== null
-        )
+        .filter((p) => !!p.teeTime)
         .sort(
           (a, b) =>
-            new Date(a.teeTime).getTime() -
-            new Date(b.teeTime).getTime()
+            new Date(a.teeTime!).getTime() -
+            new Date(b.teeTime!).getTime()
         );
 
       const earliest = sorted[0];
@@ -330,14 +326,26 @@ export default function HomeEventWidget() {
   }
 
   // ---------------------------
-  // COUNTDOWN
+  // COUNTDOWN (FINAL LOGIC)
   // ---------------------------
   function updateCountdown() {
     let target: Date | null = null;
 
-    if (event?.up_next && firstTeeTimeRef.current) {
-      target = new Date(firstTeeTimeRef.current);
-    } else if (event?.is_completed) {
+    // --- CASE 1: UP NEXT ---
+    if (event?.up_next) {
+      const raw = firstTeeTimeRef.current ?? teeTime;
+
+      if (raw) {
+        // Real tee time exists
+        target = new Date(raw);
+      } else {
+        // Tee times not posted → use activation_time as temporary tee time
+        target = new Date(event.activation_time);
+      }
+    }
+
+    // --- CASE 2: COMPLETED / LINGER WINDOW ---
+    else if (event?.is_completed || event?.linger_window) {
       target = getNextTuesdayAt3AMET();
     }
 
@@ -350,7 +358,11 @@ export default function HomeEventWidget() {
     const diff = target.getTime() - now;
 
     if (diff <= 0) {
-      setCountdown("Teeing off soon");
+      setCountdown(
+        event?.up_next
+          ? "Teeing off soon"
+          : "Picks opening soon"
+      );
       return;
     }
 
@@ -358,9 +370,7 @@ export default function HomeEventWidget() {
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
     const minutes = Math.floor((diff / (1000 * 60)) % 60);
 
-    const label = event?.is_completed
-      ? "until next week's picks open"
-      : "until tee-off";
+    const label = "until tee-off";
 
     setCountdown(`${days}d ${hours}h ${minutes}m ${label}`);
   }
@@ -421,14 +431,11 @@ export default function HomeEventWidget() {
   }
 
   // ---------------------------
-  // STATUS TEXT (UPDATED)
+  // STATUS TEXT
   // ---------------------------
   let statusText = "";
 
   if (event.in_progress) {
-    const leaderboard = event ? null : null; // placeholder, we compute earlier
-
-    // We already computed round + fake round fix above
     const completed =
       round &&
       event &&
@@ -511,7 +518,7 @@ export default function HomeEventWidget() {
               {statusText}
             </Text>
 
-            {(event.up_next || event.is_completed) &&
+            {(event.up_next || event.is_completed || event.linger_window) &&
               countdown !== "" && (
                 <Text
                   style={{
@@ -524,7 +531,6 @@ export default function HomeEventWidget() {
               )}
           </View>
 
-          {/* NEW BUTTON */}
           <TouchableOpacity
             onPress={goToTournamentInfo}
             style={{
@@ -608,7 +614,6 @@ export default function HomeEventWidget() {
                 ? "Winner"
                 : leader.label ?? "Leader"}
             </Text>
-
           </View>
         )}
       </View>

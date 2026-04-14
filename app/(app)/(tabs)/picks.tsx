@@ -430,7 +430,7 @@ export default function PicksScreen() {
                 The field for this tournament is not available yet.
               </Text>
               <Text style={{ fontSize: 14, color: themeColors.text + "66", marginTop: 8 }}>
-                Check back once picks open.
+                Check back once the field is finalized.
               </Text>
             </View>
           ) : (
