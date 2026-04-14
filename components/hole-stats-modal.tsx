@@ -3,12 +3,12 @@ import { useTheme } from "@/app/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Modal,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface Props {
@@ -144,7 +144,7 @@ export default function HoleStatsModal({
                     fontWeight: "600",
                   }}
                 >
-                  {r.round === 0 ? "Historically" : `Round ${r.round}`}
+                  {r.round === 0 ? "Overall" : `Round ${r.round}`}
                 </Text>
               </TouchableOpacity>
             ))}

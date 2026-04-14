@@ -604,8 +604,11 @@ export default function HomeEventWidget() {
                 marginTop: 2,
               }}
             >
-              {leader.label ?? "Leader"}
+              {event.linger_window
+                ? "Winner"
+                : leader.label ?? "Leader"}
             </Text>
+
           </View>
         )}
       </View>

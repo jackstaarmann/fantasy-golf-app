@@ -1,4 +1,4 @@
-import { CourseLayout, getCourseLayout } from "@/api";
+import { CourseLayout, fetchEventMeta, getCourseLayout } from "@/api";
 import { useTheme } from "@/app/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   SafeAreaView,
   ScrollView,
   Text,
@@ -14,6 +15,7 @@ import {
 } from "react-native";
 
 import HoleStatsModal from "@/components/hole-stats-modal";
+import SwingFooter from "@/components/SwingFooter"; // ⭐ NEW IMPORT
 
 export default function TournamentInfoScreen() {
   const { tournamentId } = useLocalSearchParams<{ tournamentId: string }>();
@@ -22,12 +24,42 @@ export default function TournamentInfoScreen() {
   const [layout, setLayout] = useState<CourseLayout | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Modal state
   const [selectedHole, setSelectedHole] = useState<number | null>(null);
-
-  // Available rounds for stats (default: overall)
   const [availableRounds, setAvailableRounds] = useState<number[]>([0]);
 
+  const [defendingChamp, setDefendingChamp] = useState<{
+    name: string | null;
+    headshot: string | null;
+    flag: string | null;
+  } | null>(null);
+
+  // ---------------------------
+  // LOAD DEFENDING CHAMP
+  // ---------------------------
+  useEffect(() => {
+    async function loadDefendingChampion() {
+      try {
+        const meta = await fetchEventMeta(Number(tournamentId));
+        const champ = meta?.defendingChampion?.athlete;
+
+        if (champ) {
+          setDefendingChamp({
+            name: champ.fullName ?? null,
+            headshot: champ.headshot?.href ?? null,
+            flag: champ.flag?.href ?? null,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load defending champion", err);
+      }
+    }
+
+    if (tournamentId) loadDefendingChampion();
+  }, [tournamentId]);
+
+  // ---------------------------
+  // LOAD COURSE LAYOUT
+  // ---------------------------
   useEffect(() => {
     async function load() {
       try {
@@ -36,17 +68,14 @@ export default function TournamentInfoScreen() {
         const data = await getCourseLayout(tournamentId);
         setLayout(data);
 
-        // Extract available rounds from ESPN structure
         if (data?.tournamentRoundStats?.length) {
-          const rounds = [0]; // always include overall
-
+          const rounds = [0];
           data.tournamentRoundStats.forEach((refObj: any) => {
             if (refObj?.$ref) {
               const roundNum = extractRoundFromRef(refObj.$ref);
               if (!isNaN(roundNum)) rounds.push(roundNum);
             }
           });
-
           setAvailableRounds(rounds);
         }
       } catch (err) {
@@ -68,6 +97,9 @@ export default function TournamentInfoScreen() {
     }
   }
 
+  // ---------------------------
+  // LOADING STATES
+  // ---------------------------
   if (loading) {
     return (
       <SafeAreaView
@@ -100,6 +132,9 @@ export default function TournamentInfoScreen() {
     );
   }
 
+  // ---------------------------
+  // MAIN UI
+  // ---------------------------
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
       {/* Header */}
@@ -113,23 +148,97 @@ export default function TournamentInfoScreen() {
       >
         <TouchableOpacity
           onPress={() => router.back()}
-          style={{ padding: 6, marginRight: 10 }}
+          style={{ padding: 6, width: 40 }}
         >
           <Ionicons name="chevron-back" size={28} color={themeColors.text} />
         </TouchableOpacity>
 
-        <Text
-          style={{
-            fontSize: 22,
-            fontWeight: "bold",
-            color: themeColors.text,
-          }}
-        >
-          Tournament Info
-        </Text>
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <Text
+            style={{
+              fontSize: 22,
+              fontWeight: "bold",
+              color: themeColors.text,
+            }}
+          >
+            Tournament Info
+          </Text>
+        </View>
+
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={{ flex: 1, paddingHorizontal: 20 }}>
+        {/* --------------------------- */}
+        {/* DEFENDING CHAMPION SECTION */}
+        {/* --------------------------- */}
+        {defendingChamp && (
+          <View style={{ marginBottom: 24 }}>
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "600",
+                marginBottom: 12,
+                color: themeColors.text,
+              }}
+            >
+              Defending Champion
+            </Text>
+
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {defendingChamp.headshot && (
+                <Image
+                  source={{ uri: defendingChamp.headshot }}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    marginRight: 14,
+                  }}
+                />
+              )}
+
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: themeColors.text,
+                  }}
+                >
+                  {defendingChamp.name}
+                </Text>
+
+                {defendingChamp.flag && (
+                  <Image
+                    source={{ uri: defendingChamp.flag }}
+                    style={{
+                      width: 32,
+                      height: 20,
+                      borderRadius: 3,
+                      marginTop: 6,
+                    }}
+                  />
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* --------------------------- */}
+        {/* COURSE LAYOUT HEADER */}
+        {/* --------------------------- */}
+        <Text
+          style={{
+            fontSize: 20,
+            fontWeight: "600",
+            marginBottom: 10,
+            color: themeColors.text,
+          }}
+        >
+          Course Layout
+        </Text>
+
         {/* Overview */}
         <View style={{ marginBottom: 20 }}>
           <Text style={{ fontSize: 16, color: themeColors.text }}>
@@ -171,10 +280,7 @@ export default function TournamentInfoScreen() {
             <View style={{ marginRight: 16 }}>
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => {
-                  console.log("Pressed hole:", hole.number);
-                  setSelectedHole(hole.number);
-                }}
+                onPress={() => setSelectedHole(hole.number)}
                 style={{
                   width: 120,
                   padding: 12,
@@ -208,7 +314,11 @@ export default function TournamentInfoScreen() {
         />
       </ScrollView>
 
-      {/* Hole Stats Modal */}
+      {/* --------------------------- */}
+      {/* FOOTER */}
+      {/* --------------------------- */}
+      <SwingFooter />
+
       <HoleStatsModal
         visible={selectedHole !== null}
         onClose={() => setSelectedHole(null)}
