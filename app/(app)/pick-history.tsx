@@ -54,12 +54,14 @@ export default function PickHistoryScreen() {
       const results: PickHistoryItem[] = [];
 
       for (const p of pickRows) {
+        // Tournament name
         const { data: tournamentRow } = await supabase
           .from("tournaments")
           .select("name")
           .eq("id", p.tournament_id)
           .single();
 
+        // Leaderboard fetch
         let leaderboard: any[] = [];
         try {
           const res = await fetch(
@@ -80,10 +82,26 @@ export default function PickHistoryScreen() {
           console.error("Leaderboard fetch error:", err);
         }
 
-        const golferRow = leaderboard.find(
-          (g: any) => String(g.id) === String(p.golfer_id)
-        );
+        // -----------------------------
+        // FIXED: Correct golfer lookup
+        // -----------------------------
+        const golferRow = leaderboard.find((g: any) => {
+          const ids = (g.athleteIds ?? []).map(String);
+          return ids.includes(String(p.golfer_id));
+        });
 
+        // Resolve correct name for team events
+        let golferName = "Unknown Golfer";
+        if (golferRow) {
+          const names = golferRow.name.split(" / ").map((n: string) => n.trim());
+          const ids = (golferRow.athleteIds ?? []).map(String);
+          const idx = ids.indexOf(String(p.golfer_id));
+          golferName = names[idx] ?? golferRow.name;
+        }
+
+        // -----------------------------
+        // FIXED: Correct headshot fetch
+        // -----------------------------
         let headshot = null;
         try {
           const res = await fetch(
@@ -98,7 +116,7 @@ export default function PickHistoryScreen() {
         results.push({
           id: p.id,
           tournamentName: tournamentRow?.name ?? "Unknown Tournament",
-          golferName: golferRow?.name ?? "Unknown Golfer",
+          golferName,
           headshot,
           finish: golferRow?.rank ?? "--",
           earnings: golferRow?.projected_earnings ?? 0,
