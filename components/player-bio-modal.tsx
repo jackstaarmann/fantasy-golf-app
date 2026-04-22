@@ -1,14 +1,14 @@
-import { getGolferBio } from "@/api"; // ← NEW IMPORT
+import { getGolferBio } from "@/api";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type GolferBio = {
@@ -31,28 +31,29 @@ type GolferBio = {
 
 type Props = {
   visible: boolean;
-  golferId: number | null;
+  golferIds: number[];
   onClose: () => void;
   themeColors: any;
 };
 
 export default function PlayerBioModal({
   visible,
-  golferId,
+  golferIds,
   onClose,
   themeColors,
 }: Props) {
-  const [bio, setBio] = useState<GolferBio | null>(null);
+  const [bio, setBio] = useState<GolferBio[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!visible || !golferId) return;
+    if (!visible || golferIds.length === 0) return;
 
     setLoading(true);
+    setBio([]);
 
-    getGolferBio(golferId)
-      .then((data) => {
-        setBio(data);
+    Promise.all(golferIds.map((id) => getGolferBio(id)))
+      .then((results) => {
+        setBio(results.filter(Boolean));
       })
       .catch((err) => {
         console.error("Bio fetch error:", err);
@@ -60,7 +61,7 @@ export default function PlayerBioModal({
       .finally(() => {
         setLoading(false);
       });
-  }, [visible, golferId]);
+  }, [visible, JSON.stringify(golferIds)]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -84,69 +85,101 @@ export default function PlayerBioModal({
           )}
 
           {/* Bio Content */}
-          {!loading && bio && (
+          {!loading && bio.length > 0 && (
             <ScrollView contentContainerStyle={styles.content}>
-              {/* Headshot */}
-              {bio.headshot && (
-                <Image source={{ uri: bio.headshot }} style={styles.headshot} />
-              )}
+              {bio.map((player, index) => (
+                <View key={player.id} style={{ width: "100%" }}>
+                  {/* Divider between players */}
+                  {index > 0 && (
+                    <View
+                      style={[
+                        styles.divider,
+                        { borderColor: themeColors.border ?? "#444" },
+                      ]}
+                    />
+                  )}
 
-              {/* Name */}
-              <Text style={[styles.name, { color: themeColors.text }]}>
-                {bio.name}
-              </Text>
+                  {/* Headshot */}
+                  {player.headshot && (
+                    <Image
+                      source={{ uri: player.headshot }}
+                      style={styles.headshot}
+                    />
+                  )}
 
-              {/* Flag + Nationality */}
-              <View style={styles.row}>
-                {bio.flag && (
-                  <Image source={{ uri: bio.flag }} style={styles.flag} />
-                )}
-                <Text
-                  style={[styles.nationality, { color: themeColors.text }]}
-                >
-                  {bio.nationality}
-                </Text>
-              </View>
+                  {/* Name */}
+                  <Text style={[styles.name, { color: themeColors.text }]}>
+                    {player.name}
+                  </Text>
 
-              {/* Basic Info */}
-              <View style={styles.infoBlock}>
-                {bio.age && (
-                  <Text style={[styles.infoText, { color: themeColors.text }]}>
-                    Age: {bio.age}
-                  </Text>
-                )}
-                {bio.height && (
-                  <Text style={[styles.infoText, { color: themeColors.text }]}>
-                    Height: {bio.height}
-                  </Text>
-                )}
-                {bio.birthplace && (
-                  <Text style={[styles.infoText, { color: themeColors.text }]}>
-                    Birthplace: {bio.birthplace.city},{" "}
-                    {bio.birthplace.country}
-                  </Text>
-                )}
-                {bio.turnedPro && (
-                  <Text style={[styles.infoText, { color: themeColors.text }]}>
-                    Turned Pro: {bio.turnedPro}
-                  </Text>
-                )}
-              </View>
+                  {/* Flag + Nationality */}
+                  <View style={styles.row}>
+                    {player.flag && (
+                      <Image
+                        source={{ uri: player.flag }}
+                        style={styles.flag}
+                      />
+                    )}
+                    <Text
+                      style={[styles.nationality, { color: themeColors.text }]}
+                    >
+                      {player.nationality}
+                    </Text>
+                  </View>
 
-              {/* FedExCup */}
-              <View style={styles.infoBlock}>
-                <Text
-                  style={[styles.sectionTitle, { color: themeColors.text }]}
-                >
-                  FedExCup
-                </Text>
-                <Text style={[styles.infoText, { color: themeColors.text }]}>
-                  Rank: {bio.fedexRank ?? "—"}
-                </Text>
-                <Text style={[styles.infoText, { color: themeColors.text }]}>
-                  Points: {bio.fedexPoints ?? "—"}
-                </Text>
-              </View>
+                  {/* Basic Info */}
+                  <View style={styles.infoBlock}>
+                    {player.age && (
+                      <Text
+                        style={[styles.infoText, { color: themeColors.text }]}
+                      >
+                        Age: {player.age}
+                      </Text>
+                    )}
+                    {player.height && (
+                      <Text
+                        style={[styles.infoText, { color: themeColors.text }]}
+                      >
+                        Height: {player.height}
+                      </Text>
+                    )}
+                    {player.birthplace && (
+                      <Text
+                        style={[styles.infoText, { color: themeColors.text }]}
+                      >
+                        Birthplace: {player.birthplace.city},{" "}
+                        {player.birthplace.country}
+                      </Text>
+                    )}
+                    {player.turnedPro && (
+                      <Text
+                        style={[styles.infoText, { color: themeColors.text }]}
+                      >
+                        Turned Pro: {player.turnedPro}
+                      </Text>
+                    )}
+                  </View>
+
+                  {/* FedExCup */}
+                  <View style={styles.infoBlock}>
+                    <Text
+                      style={[styles.sectionTitle, { color: themeColors.text }]}
+                    >
+                      FedExCup
+                    </Text>
+                    <Text
+                      style={[styles.infoText, { color: themeColors.text }]}
+                    >
+                      Rank: {player.fedexRank ?? "—"}
+                    </Text>
+                    <Text
+                      style={[styles.infoText, { color: themeColors.text }]}
+                    >
+                      Points: {player.fedexPoints ?? "—"}
+                    </Text>
+                  </View>
+                </View>
+              ))}
             </ScrollView>
           )}
         </View>
@@ -221,5 +254,10 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 16,
     marginBottom: 4,
+  },
+  divider: {
+    borderTopWidth: 1,
+    marginVertical: 24,
+    width: "100%",
   },
 });

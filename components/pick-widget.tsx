@@ -5,15 +5,20 @@ import { Image, StyleSheet, Text, View } from "react-native";
 
 const placeholder = require("@/assets/images/golfer-placeholder.png");
 
+// ----------------------------
+// Types
+// ----------------------------
+
 type LeaderboardPlayer = {
-  id: string;
-  name: string;
+  id: string; // team id
+  name: string; // "Player A / Player B" or single name
   rank: string;
   toPar: number | null;
   thru: number | null;
   round?: number | null;
   teeTime?: string | null;
   projected_earnings: number;
+  athleteIds?: number[]; // IMPORTANT for team events
 };
 
 type Tournament = {
@@ -43,29 +48,19 @@ function formatTeeTime(teeTime: string | null | undefined): string {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-// NEW: Round-aware thru logic
-function computeThruDisplay(
-  golfer: LeaderboardPlayer,
-  currentRound: number
-): string {
+function computeThruDisplay(golfer: LeaderboardPlayer, currentRound: number): string {
   const playerRound = golfer.round ?? 0;
   const teeTime = golfer.teeTime ?? null;
   const thru = golfer.thru ?? null;
 
   if (playerRound < currentRound) {
-    if (teeTime) {
-      const t = formatTeeTime(teeTime);
-      return `Tee Time: ${t}`;
-    }
+    if (teeTime) return `Tee Time: ${formatTeeTime(teeTime)}`;
     return "Tee Time: --";
   }
 
   if (playerRound === currentRound) {
     if (thru === 18) return "F";
-    if (thru === 0 && teeTime) {
-      const t = formatTeeTime(teeTime);
-      return `Tee Time: ${t}`;
-    }
+    if (thru === 0 && teeTime) return `Tee Time: ${formatTeeTime(teeTime)}`;
     return `Thru: ${thru}`;
   }
 
@@ -81,9 +76,7 @@ async function resolveImageFromHref(href: string): Promise<string | null> {
     const res = await fetch(href);
     const contentType = res.headers.get("content-type") ?? "";
 
-    if (contentType.includes("image")) {
-      return href;
-    }
+    if (contentType.includes("image")) return href;
 
     const data = await res.json();
 
@@ -93,8 +86,7 @@ async function resolveImageFromHref(href: string): Promise<string | null> {
     }
 
     return null;
-  } catch (err) {
-    console.error("resolveImageFromHref error:", err);
+  } catch {
     return null;
   }
 }
@@ -117,9 +109,7 @@ function extractSeasonYear(seasonField: any): number | null {
     if (match) return parseInt(match[1], 10);
   }
 
-  if (typeof seasonField.year === "number") {
-    return seasonField.year;
-  }
+  if (typeof seasonField.year === "number") return seasonField.year;
 
   return null;
 }
@@ -136,11 +126,7 @@ async function fetchAthleteProfile(golferId: string, eventId: string) {
     const eventData = await eventRes.json();
 
     const seasonYear = extractSeasonYear(eventData.season);
-
-    if (!seasonYear) {
-      console.warn("No season year resolved for event:", eventId, eventData.season);
-      return { headshot: null, flag: null };
-    }
+    if (!seasonYear) return { headshot: null, flag: null };
 
     const athleteRes = await fetch(
       `https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/seasons/${seasonYear}/athletes/${golferId}?lang=en&region=us`
@@ -158,8 +144,7 @@ async function fetchAthleteProfile(golferId: string, eventId: string) {
     }
 
     return { headshot, flag };
-  } catch (err) {
-    console.error("Athlete fetch error:", err);
+  } catch {
     return { headshot: null, flag: null };
   }
 }
@@ -178,7 +163,7 @@ export default function PickWidget({
   tournament: Tournament | null;
 }) {
   const { themeColors } = useTheme();
-  const router = useRouter(); // ✅ correct placement
+  const router = useRouter();
 
   const [profile, setProfile] = useState<{ headshot: string | null; flag: string | null }>({
     headshot: null,
@@ -192,103 +177,76 @@ export default function PickWidget({
 
   if (!golferId) {
     return (
-      <View
-        style={[
-          styles.container,
-          { backgroundColor: themeColors.card, borderColor: themeColors.border },
-        ]}
-      >
-        <Text style={[styles.noPick, { color: themeColors.text + "99" }]}>
-          No pick yet
-        </Text>
+      <View style={[styles.container, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+        <Text style={[styles.noPick, { color: themeColors.text + "99" }]}>No pick yet</Text>
       </View>
     );
   }
 
-  const golfer = useMemo(
-    () => leaderboard.find((g) => g.id === golferId) ?? null,
-    [leaderboard, golferId]
-  );
+  // ----------------------------
+  // FIXED: Correct golfer lookup
+  // ----------------------------
+  const golfer = useMemo(() => {
+    return (
+      leaderboard.find(team => {
+        const ids = (team.athleteIds ?? []).map(String);
+        return ids.includes(String(golferId));
+      }) ?? null
+    );
+  }, [leaderboard, golferId]);
 
   if (!golfer) {
     return (
-      <View
-        style={[
-          styles.container,
-          { backgroundColor: themeColors.card, borderColor: themeColors.border },
-        ]}
-      >
-        <Text style={[styles.noPick, { color: themeColors.text + "99" }]}>
-          Golfer not found
-        </Text>
+      <View style={[styles.container, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+        <Text style={[styles.noPick, { color: themeColors.text + "99" }]}>Golfer not found</Text>
       </View>
     );
   }
+
+  // Resolve correct name for team events
+  const names = golfer.name.split(" / ").map(n => n.trim());
+  const ids = (golfer.athleteIds ?? []).map(String);
+  const idx = ids.indexOf(String(golferId));
+  const displayName = names[idx] ?? golfer.name;
 
   const displayRank = golfer.rank ?? "--";
   const projected = golfer.projected_earnings ?? 0;
 
   const toParDisplay = formatToPar(golfer.toPar);
-
   const currentRound = leaderboard[0]?.round ?? 1;
   const thruDisplay = computeThruDisplay(golfer, currentRound);
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: themeColors.card, borderColor: themeColors.border },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
       <View style={styles.leftColumn}>
-        <Image
-          source={profile.headshot ? { uri: profile.headshot } : placeholder}
-          style={styles.headshot}
-        />
+        <Image source={profile.headshot ? { uri: profile.headshot } : placeholder} style={styles.headshot} />
 
         {profile.flag ? (
           <Image source={{ uri: profile.flag }} style={styles.flag} />
         ) : (
-          <View
-            style={[
-              styles.flagPlaceholder,
-              { backgroundColor: themeColors.border },
-            ]}
-          />
+          <View style={[styles.flagPlaceholder, { backgroundColor: themeColors.border }]} />
         )}
       </View>
 
       <View style={styles.rightColumn}>
         <View style={styles.row}>
-          <Text style={[styles.name, { color: themeColors.text }]}>
-            {golfer.name}
-          </Text>
-          <Text style={[styles.rank, { color: themeColors.tint }]}>
-            {displayRank}
-          </Text>
+          <Text style={[styles.name, { color: themeColors.text }]}>{displayName}</Text>
+          <Text style={[styles.rank, { color: themeColors.tint }]}>{displayRank}</Text>
         </View>
 
         <View style={styles.row}>
-          <Text style={[styles.sub, { color: themeColors.text + "99" }]}>
-            To Par: {toParDisplay}
-          </Text>
-          <Text style={[styles.sub, { color: themeColors.text + "99" }]}>
-            {thruDisplay}
-          </Text>
+          <Text style={[styles.sub, { color: themeColors.text + "99" }]}>To Par: {toParDisplay}</Text>
+          <Text style={[styles.sub, { color: themeColors.text + "99" }]}>{thruDisplay}</Text>
         </View>
 
-        {/* UPDATED ROW WITH VIEW HISTORY BUTTON */}
         <View style={styles.row}>
           <Text style={[styles.projected, { color: themeColors.tint }]}>
             Projected: ${projected.toLocaleString()}
           </Text>
 
           <Text
-            style={[
-              styles.historyLink,
-              { color: themeColors.text + "99" }
-            ]}
-            onPress={() => router.push("/(app)/pick-history")} // ✅ correct Expo Router navigation
+            style={[styles.historyLink, { color: themeColors.text + "99" }]}
+            onPress={() => router.push("/(app)/pick-history")}
           >
             View History →
           </Text>

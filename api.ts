@@ -14,6 +14,8 @@ export type LeaderboardPlayer = {
   teeTime: string | null;
   round: number | null;
   projected_earnings: number;
+  athleteIds?: number[];
+  isTeam?: boolean;
 };
 
 export interface CourseLayout {

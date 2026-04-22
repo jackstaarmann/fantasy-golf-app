@@ -75,8 +75,8 @@ export default function PGALeaderboard() {
   const [timezone, setTimezone] = useState<string | null>(null);
   const [tournament, setTournament] = useState<any>(null);
 
-  // Modal state
-  const [selectedGolferId, setSelectedGolferId] = useState<number | null>(null);
+  // Modal state — FIXED
+  const [selectedGolferIds, setSelectedGolferIds] = useState<number[]>([]);
   const [showBio, setShowBio] = useState(false);
 
   // Search state
@@ -119,43 +119,34 @@ export default function PGALeaderboard() {
     }
   }
 
-async function loadTournament() {
-  const { data } = await supabase
-    .from("tournaments")
-    .select("*")
-    .order("activation_time", { ascending: true });
+  async function loadTournament() {
+    const { data } = await supabase
+      .from("tournaments")
+      .select("*")
+      .order("activation_time", { ascending: true });
 
-  if (!data || data.length === 0) return;
+    if (!data || data.length === 0) return;
 
-  // 1. Tournament currently in progress
-  const inProgress = data.find((t) => t.in_progress);
+    const inProgress = data.find((t) => t.in_progress);
+    const linger = data.find((t) => t.linger_window);
+    const upNext = data.find((t) => t.up_next);
 
-  // 2. Tournament in linger window (the one we ALWAYS want to show)
-  const linger = data.find((t) => t.linger_window);
+    const completed = [...data]
+      .filter((t) => t.is_completed)
+      .sort(
+        (a, b) =>
+          new Date(b.activation_time).getTime() -
+          new Date(a.activation_time).getTime()
+      )[0];
 
-  // 3. Tournament up next
-  const upNext = data.find((t) => t.up_next);
+    const event = inProgress || linger || upNext || completed || null;
 
-  // 4. Most recent completed tournament
-  const completed = [...data]
-    .filter((t) => t.is_completed)
-    .sort(
-      (a, b) =>
-        new Date(b.activation_time).getTime() -
-        new Date(a.activation_time).getTime()
-    )[0];
-
-  // Priority order
-  const event = inProgress || linger || upNext || completed || null;
-
-  if (event) {
-    setTournamentId(Number(event.id));
-    setTournamentName(event.name);
-    setTournament(event);
+    if (event) {
+      setTournamentId(Number(event.id));
+      setTournamentName(event.name);
+      setTournament(event);
+    }
   }
-}
-
-
 
   async function loadLeaderboard() {
     if (!tournamentId) return;
@@ -209,7 +200,6 @@ async function loadTournament() {
   // -----------------------------
   // CUT / PROJECTED CUT / WD LOGIC
   // -----------------------------
-
   const tournamentRound =
     players.length > 0 ? computeTournamentRound(players) : 1;
 
@@ -456,7 +446,7 @@ async function loadTournament() {
           return (
             <TouchableOpacity
               onPress={() => {
-                setSelectedGolferId(Number(item.id));
+                setSelectedGolferIds(item.athleteIds ?? [Number(item.id)]);
                 setShowBio(true);
               }}
             >
@@ -518,10 +508,10 @@ async function loadTournament() {
         }}
       />
 
-      {/* PLAYER BIO MODAL */}
+      {/* PLAYER BIO MODAL — FIXED */}
       <PlayerBioModal
         visible={showBio}
-        golferId={selectedGolferId}
+        golferIds={selectedGolferIds}
         onClose={() => setShowBio(false)}
         themeColors={themeColors}
       />

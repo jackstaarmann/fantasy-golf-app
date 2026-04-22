@@ -20,7 +20,7 @@ import type { LeaderboardPlayer } from '@/api';
 import { fetchLeaderboard } from '@/api';
 import { PickSummaryWidget } from '@/components/pick-summary-widget';
 import PickWidget from '@/components/pick-widget';
-import SwingFooter from "@/components/SwingFooter"; // ✅ NEW IMPORT
+import SwingFooter from "@/components/SwingFooter";
 
 type Pick = {
   id: number;
@@ -46,6 +46,49 @@ type Tournament = {
   linger_window: boolean;
 };
 
+// Flat individual player entry for the picker
+type PickerPlayer = {
+  athleteId: string;
+  name: string;
+  teamName: string;   // full team name e.g. "Matt Fitzpatrick / Alex Fitzpatrick"
+  teamId: string;     // leaderboard team id
+};
+
+function buildPickerList(leaderboard: LeaderboardPlayer[]): PickerPlayer[] {
+  const players: PickerPlayer[] = [];
+
+  for (const team of leaderboard) {
+    const names = team.name.split(" / ").map((n) => n.trim());
+    const ids = team.athleteIds ?? [];
+
+    if (team.isTeam && names.length === 2 && ids.length === 2) {
+      // Split into two individual entries
+      players.push({
+        athleteId: String(ids[0]),
+        name: names[0],
+        teamName: team.name,
+        teamId: team.id,
+      });
+      players.push({
+        athleteId: String(ids[1]),
+        name: names[1],
+        teamName: team.name,
+        teamId: team.id,
+      });
+    } else {
+      // Individual event — just use the player as-is
+      players.push({
+        athleteId: ids[0] ? String(ids[0]) : team.id,
+        name: team.name,
+        teamName: team.name,
+        teamId: team.id,
+      });
+    }
+  }
+
+  return players;
+}
+
 export default function PicksScreen() {
   const { themeColors } = useTheme();
 
@@ -62,7 +105,6 @@ export default function PicksScreen() {
   const [loadingField, setLoadingField] = useState(true);
 
   const [pickerModalVisible, setPickerModalVisible] = useState(false);
-
   const [searchQuery, setSearchQuery] = useState("");
 
   // -------------------------
@@ -150,9 +192,17 @@ export default function PicksScreen() {
     const leaderboardData = await fetchLeaderboard(Number(tournament.id));
     setLeaderboard(leaderboardData);
 
+    // Match by athleteId — golfer_id stores individual athlete ID now
     const withName = (p: Pick): Pick => {
-      const match = leaderboardData.find((g) => g.id === p.golfer_id);
-      return { ...p, golferName: match?.name ?? 'Unknown Golfer' };
+      for (const team of leaderboardData) {
+        const names = team.name.split(" / ").map((n) => n.trim());
+        const ids = (team.athleteIds ?? []).map(String);
+        const idx = ids.indexOf(p.golfer_id);
+        if (idx !== -1) {
+          return { ...p, golferName: names[idx] ?? team.name };
+        }
+      }
+      return { ...p, golferName: "Unknown Golfer" };
     };
 
     const { data: userPickRaw } = await supabase
@@ -214,21 +264,21 @@ export default function PicksScreen() {
     setPickerModalVisible(true);
   };
 
-  const submitPick = async (golfer: LeaderboardPlayer) => {
+  const submitPick = async (player: PickerPlayer) => {
     if (!currentUser || !tournament || !tournament.is_open_for_picks) return;
 
     setUserPick((prev) => ({
       id: prev?.id ?? 0,
       user_id: currentUser.id,
-      golfer_id: golfer.id,
+      golfer_id: player.athleteId,
       users: prev?.users ?? null,
-      golferName: golfer.name,
+      golferName: player.name,
     }));
 
     setLeaguePicks((prev) =>
       prev.map((p) =>
         p.user_id === currentUser.id
-          ? { ...p, golfer_id: golfer.id, golferName: golfer.name }
+          ? { ...p, golfer_id: player.athleteId, golferName: player.name }
           : p
       )
     );
@@ -239,7 +289,7 @@ export default function PicksScreen() {
       {
         user_id: currentUser.id,
         tournament_id: tournament.id,
-        golfer_id: golfer.id,
+        golfer_id: player.athleteId,
         league_id: userLeagueId,
       },
       { onConflict: 'user_id,tournament_id' }
@@ -268,8 +318,10 @@ export default function PicksScreen() {
     );
   }
 
-  const filteredLeaderboard = leaderboard.filter((g) =>
-    g.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const pickerList = buildPickerList(leaderboard);
+
+  const filteredPickerList = pickerList.filter((p) =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -308,7 +360,7 @@ export default function PicksScreen() {
       {!userInLeague && (
         <View style={{ marginTop: 20 }}>
           <Text style={{ fontSize: 16, marginBottom: 10, color: themeColors.text }}>
-            You’re not in a league yet.
+            You're not in a league yet.
           </Text>
 
           <TouchableOpacity
@@ -388,9 +440,7 @@ export default function PicksScreen() {
                     </View>
                   );
                 }}
-                ListFooterComponent={
-                  <SwingFooter />   // ✅ REUSABLE FOOTER
-                }
+                ListFooterComponent={<SwingFooter />}
               />
             </>
           )}
@@ -424,7 +474,7 @@ export default function PicksScreen() {
             }}
           />
 
-          {!tournament.is_open_for_picks || leaderboard.length === 0 ? (
+          {!tournament.is_open_for_picks || pickerList.length === 0 ? (
             <View style={{ marginTop: 40, alignItems: 'center' }}>
               <Text style={{ fontSize: 16, color: themeColors.text + "99", textAlign: 'center', paddingHorizontal: 20 }}>
                 The field for this tournament is not available yet.
@@ -435,8 +485,8 @@ export default function PicksScreen() {
             </View>
           ) : (
             <FlatList
-              data={filteredLeaderboard}
-              keyExtractor={(item) => item.id}
+              data={filteredPickerList}
+              keyExtractor={(item) => item.athleteId}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
@@ -450,6 +500,12 @@ export default function PicksScreen() {
                   <Text style={[styles.golferName, { color: themeColors.text }]}>
                     {item.name}
                   </Text>
+                  {/* Show partner so user knows who they're teamed with */}
+                  {item.teamName !== item.name && (
+                    <Text style={{ fontSize: 13, color: themeColors.text + "88", marginTop: 2 }}>
+                      Partner: {item.teamName.replace(item.name, "").replace(" / ", "").trim()}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               )}
             />

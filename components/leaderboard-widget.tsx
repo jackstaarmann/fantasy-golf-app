@@ -48,7 +48,7 @@ export default function LeaderboardWidget() {
   const [timezone, setTimezone] = useState<string | null>(null);
   const [currentRound, setCurrentRound] = useState<number>(1);
 
-  const [selectedGolferId, setSelectedGolferId] = useState<number | null>(null);
+  const [selectedGolferIds, setSelectedGolferIds] = useState<number[]>([]);
   const [showBio, setShowBio] = useState(false);
 
   const formatToPar = (n: number) => {
@@ -124,11 +124,9 @@ export default function LeaderboardWidget() {
     try {
       const data = await fetchLeaderboard(tournamentId);
 
-      // compute round from FULL field
       const round = computeTournamentRound(data);
       setCurrentRound(round);
 
-      // only show top 5
       setPlayers(data.slice(0, 5));
       setLoading(false);
     } catch (err) {
@@ -263,7 +261,7 @@ export default function LeaderboardWidget() {
               >
                 <Pressable
                   onPress={() => {
-                    setSelectedGolferId(Number(p.id));
+                    setSelectedGolferIds(p.athleteIds ?? [Number(p.id)]);
                     setShowBio(true);
                   }}
                   style={({ pressed }) => ({
@@ -348,7 +346,7 @@ export default function LeaderboardWidget() {
 
       <PlayerBioModal
         visible={showBio}
-        golferId={selectedGolferId}
+        golferIds={selectedGolferIds}
         onClose={() => setShowBio(false)}
         themeColors={themeColors}
       />
