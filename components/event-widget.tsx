@@ -6,11 +6,10 @@ import supabase from "@/supabase";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 // ---------------------------
@@ -128,6 +127,9 @@ export default function HomeEventWidget() {
 
   const [leader, setLeader] = useState<LeaderInfo | null>(null);
 
+  // NEW: store leaderboard for round-completion logic
+  const leaderboardRef = useRef<LeaderboardPlayer[]>([]);
+
   // ---------------------------
   // INITIAL LOAD
   // ---------------------------
@@ -230,14 +232,14 @@ export default function HomeEventWidget() {
   useEffect(() => {
     if (!event) return;
 
-    if (event.in_progress) {
+    if (event?.in_progress) {
       loadCurrentLeader(event);
-    } else if (event.linger_window) {
+    } else if (event?.linger_window) {
       loadCurrentLeader(event);
-    } else if (event.up_next) {
+    } else if (event?.up_next) {
       loadDefendingChampion(event);
       loadTeeTimeOnly(event);
-    } else if (event.is_completed) {
+    } else if (event?.is_completed) {
       loadCurrentLeader(event);
     }
   }, [event]);
@@ -246,6 +248,8 @@ export default function HomeEventWidget() {
     try {
       const leaderboard = await fetchLeaderboard(Number(activeEvent.id));
       if (!leaderboard || leaderboard.length === 0) return;
+
+      leaderboardRef.current = leaderboard;
 
       const fakeR4 = isFakeRound4(leaderboard);
 
@@ -292,6 +296,8 @@ export default function HomeEventWidget() {
       const leaderboard = await fetchLeaderboard(Number(activeEvent.id));
       if (!leaderboard || leaderboard.length === 0) return;
 
+      leaderboardRef.current = leaderboard;
+
       const sorted = leaderboard
         .filter((p) => !!p.teeTime)
         .sort(
@@ -331,21 +337,15 @@ export default function HomeEventWidget() {
   function updateCountdown() {
     let target: Date | null = null;
 
-    // --- CASE 1: UP NEXT ---
     if (event?.up_next) {
       const raw = firstTeeTimeRef.current ?? teeTime;
 
       if (raw) {
-        // Real tee time exists
         target = new Date(raw);
       } else {
-        // Tee times not posted → use activation_time as temporary tee time
         target = new Date(event.activation_time);
       }
-    }
-
-    // --- CASE 2: COMPLETED / LINGER WINDOW ---
-    else if (event?.is_completed || event?.linger_window) {
+    } else if (event?.is_completed || event?.linger_window) {
       target = getNextTuesdayAt3AMET();
     }
 
@@ -387,76 +387,29 @@ export default function HomeEventWidget() {
   };
 
   // ---------------------------
-  // RENDER
-  // ---------------------------
-  if (loading) {
-    return (
-      <View style={{ padding: 16 }}>
-        <ActivityIndicator size="small" color={themeColors.tint} />
-      </View>
-    );
-  }
-
-  if (!event) {
-    return (
-      <View
-        style={{
-          padding: 16,
-          borderRadius: 12,
-          backgroundColor: themeColors.card,
-          borderWidth: 1,
-          borderColor: themeColors.border,
-          marginBottom: 16,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 16,
-            fontWeight: "600",
-            color: themeColors.text,
-          }}
-        >
-          No Event This Week
-        </Text>
-        <Text
-          style={{
-            marginTop: 4,
-            color: themeColors.text + "99",
-          }}
-        >
-          Check back soon for the next tournament.
-        </Text>
-      </View>
-    );
-  }
-
-  // ---------------------------
-  // STATUS TEXT
+  // STATUS TEXT (FIXED LOGIC)
   // ---------------------------
   let statusText = "";
 
-  if (event.in_progress) {
-    const completed =
-      round &&
-      event &&
-      event.id &&
-      leader &&
-      leader.score !== null &&
-      leader.score !== undefined &&
-      leader.score !== "";
+  if (!event) {
+    statusText = "";
+  } else if (event?.in_progress) {
+    const roundCompleted =
+      round !== null &&
+      isRoundCompleted(leaderboardRef.current, round);
 
-    if (round && completed) {
+    if (roundCompleted) {
       statusText = `Round ${round} Completed`;
     } else {
       statusText = round ? `Round ${round} in Progress` : "Live Now";
     }
-  } else if (event.linger_window) {
+  } else if (event?.linger_window) {
     statusText = "Finalizing Results";
-  } else if (event.up_next) {
+  } else if (event?.up_next) {
     statusText = "Rounds Not Started";
-  } else if (event.is_open_for_picks) {
+  } else if (event?.is_open_for_picks) {
     statusText = "Picks Open";
-  } else if (event.is_completed) {
+  } else if (event?.is_completed) {
     statusText = "Tournament Completed";
   } else {
     statusText = "Upcoming Event";
@@ -505,7 +458,7 @@ export default function HomeEventWidget() {
                 color: themeColors.text,
               }}
             >
-              {event.name}
+              {event?.name}
             </Text>
 
             <Text
@@ -518,7 +471,9 @@ export default function HomeEventWidget() {
               {statusText}
             </Text>
 
-            {(event.up_next || event.is_completed || event.linger_window) &&
+            {(event?.up_next ||
+              event?.is_completed ||
+              event?.linger_window) &&
               countdown !== "" && (
                 <Text
                   style={{
@@ -610,7 +565,7 @@ export default function HomeEventWidget() {
                 marginTop: 2,
               }}
             >
-              {event.linger_window
+              {event?.linger_window
                 ? "Winner"
                 : leader.label ?? "Leader"}
             </Text>

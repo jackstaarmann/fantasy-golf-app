@@ -1,7 +1,6 @@
 import { useTheme } from "@/app/providers/ThemeProvider";
-import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const placeholder = require("@/assets/images/golfer-placeholder.png");
 
@@ -10,15 +9,15 @@ const placeholder = require("@/assets/images/golfer-placeholder.png");
 // ----------------------------
 
 type LeaderboardPlayer = {
-  id: string; // team id
-  name: string; // "Player A / Player B" or single name
+  id: string;
+  name: string;
   rank: string;
   toPar: number | null;
   thru: number | null;
   round?: number | null;
   teeTime?: string | null;
   projected_earnings: number;
-  athleteIds?: number[]; // IMPORTANT for team events
+  athleteIds?: number[];
 };
 
 type Tournament = {
@@ -150,20 +149,21 @@ async function fetchAthleteProfile(golferId: string, eventId: string) {
 }
 
 // ----------------------------
-// Component
+// Single Golfer Card
 // ----------------------------
 
-export default function PickWidget({
+function GolferCard({
   golferId,
   leaderboard,
   tournament,
+  onRemove,
 }: {
-  golferId: string | null;
+  golferId: string;
   leaderboard: LeaderboardPlayer[];
   tournament: Tournament | null;
+  onRemove?: (id: string) => void;
 }) {
   const { themeColors } = useTheme();
-  const router = useRouter();
 
   const [profile, setProfile] = useState<{ headshot: string | null; flag: string | null }>({
     headshot: null,
@@ -175,17 +175,6 @@ export default function PickWidget({
     fetchAthleteProfile(golferId, tournament.id).then(setProfile);
   }, [golferId, tournament?.id]);
 
-  if (!golferId) {
-    return (
-      <View style={[styles.container, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-        <Text style={[styles.noPick, { color: themeColors.text + "99" }]}>No pick yet</Text>
-      </View>
-    );
-  }
-
-  // ----------------------------
-  // FIXED: Correct golfer lookup
-  // ----------------------------
   const golfer = useMemo(() => {
     return (
       leaderboard.find(team => {
@@ -203,7 +192,6 @@ export default function PickWidget({
     );
   }
 
-  // Resolve correct name for team events
   const names = golfer.name.split(" / ").map(n => n.trim());
   const ids = (golfer.athleteIds ?? []).map(String);
   const idx = ids.indexOf(String(golferId));
@@ -244,14 +232,55 @@ export default function PickWidget({
             Projected: ${projected.toLocaleString()}
           </Text>
 
-          <Text
-            style={[styles.historyLink, { color: themeColors.text + "99" }]}
-            onPress={() => router.push("/(app)/pick-history")}
-          >
-            View History →
-          </Text>
+          {tournament?.is_open_for_picks && (
+          <TouchableOpacity onPress={() => onRemove?.(golferId)}>
+            <Text style={[styles.removeLink, { color: themeColors.tint }]}>
+              Remove Pick
+            </Text>
+          </TouchableOpacity>
+        )}
         </View>
       </View>
+    </View>
+  );
+}
+
+// ----------------------------
+// Component
+// ----------------------------
+
+export default function PickWidget({
+  golferIds,
+  leaderboard,
+  tournament,
+  onRemove,
+}: {
+  golferIds: string[];
+  leaderboard: LeaderboardPlayer[];
+  tournament: Tournament | null;
+  onRemove?: (id: string) => void;
+}) {
+  const { themeColors } = useTheme();
+
+  if (!golferIds || golferIds.length === 0) {
+    return (
+      <View style={[styles.container, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+        <Text style={[styles.noPick, { color: themeColors.text + "99" }]}>No pick yet</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      {golferIds.map((id) => (
+        <GolferCard
+          key={id}
+          golferId={id}
+          leaderboard={leaderboard}
+          tournament={tournament}
+          onRemove={onRemove}
+        />
+      ))}
     </View>
   );
 }
@@ -313,9 +342,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
-  historyLink: {
+  removeLink: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "600",
     alignSelf: "center",
     marginLeft: 12,
   },

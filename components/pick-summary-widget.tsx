@@ -36,9 +36,6 @@ export function PickSummaryWidget({
 }: Props) {
   const { themeColors } = useTheme();
 
-  // -------------------------------------------------------
-  // MODE: force global if user is not in a league
-  // -------------------------------------------------------
   const [mode, setMode] = useState<"league" | "global">(
     inLeague ? "league" : "global"
   );
@@ -50,17 +47,14 @@ export function PickSummaryWidget({
   const [infoVisible, setInfoVisible] = useState(false);
   const normalizedId = String(tournamentId);
 
-  // -------------------------------------------------------
-  // SAFE FETCHING
-  // -------------------------------------------------------
-
-  // Global always loads
+  // -----------------------------
+  // FETCHING
+  // -----------------------------
   const {
     data: globalHookData,
     loading: globalLoading,
   } = usePickSummary(normalizedId, "global");
 
-  // League loads ONLY if valid
   const shouldLoadLeague = inLeague && !!leagueId;
 
   const {
@@ -68,13 +62,10 @@ export function PickSummaryWidget({
     loading: leagueLoading,
   } = usePickSummary(
     normalizedId,
-    shouldLoadLeague ? "league" : "global", // fallback to global to avoid bad calls
+    shouldLoadLeague ? "league" : "global",
     shouldLoadLeague ? leagueId! : undefined
   );
 
-  // -------------------------------------------------------
-  // LOCAL CACHED STATE
-  // -------------------------------------------------------
   const [globalData, setGlobalData] = useState<any>(null);
   const [leagueData, setLeagueData] = useState<any>(null);
 
@@ -88,9 +79,6 @@ export function PickSummaryWidget({
     }
   }, [leagueHookData, shouldLoadLeague]);
 
-  // -------------------------------------------------------
-  // ACTIVE DATASET
-  // -------------------------------------------------------
   const activeData =
     mode === "league" && shouldLoadLeague ? leagueData : globalData;
 
@@ -103,17 +91,28 @@ export function PickSummaryWidget({
     Array.isArray(activeData.topPicks) &&
     activeData.topPicks.length > 0;
 
-  // -------------------------------------------------------
+  // -----------------------------
+  // TEAM-AWARE LOOKUP
+  // -----------------------------
+  function findLeaderboardEntry(golferId: string) {
+    return leaderboard.find((g) =>
+      (g.athleteIds ?? []).map(String).includes(String(golferId))
+    );
+  }
+
+  // -----------------------------
   // DERIVED STATE
-  // -------------------------------------------------------
+  // -----------------------------
   const topPicksWithEarnings = useMemo(() => {
     if (!hasData) return [];
 
     return activeData.topPicks.map((p: PickSummaryItem) => {
-      const lb = leaderboard.find((g) => g.id === p.golferId);
+      const lb = findLeaderboardEntry(p.golferId);
+
       return {
         ...p,
         projectedEarnings: lb?.projected_earnings ?? 0,
+        rank: lb?.rank ?? p.rank,
       };
     });
   }, [activeData, leaderboard, hasData]);
@@ -121,16 +120,18 @@ export function PickSummaryWidget({
   const yourPickWithEarnings = useMemo(() => {
     if (!activeData?.yourPick) return null;
 
-    const lb = leaderboard.find((g) => g.id === activeData.yourPick.golferId);
+    const lb = findLeaderboardEntry(activeData.yourPick.golferId);
+
     return {
       ...activeData.yourPick,
       projectedEarnings: lb?.projected_earnings ?? 0,
+      rank: lb?.rank ?? activeData.yourPick.rank,
     };
   }, [activeData, leaderboard]);
 
-  // -------------------------------------------------------
+  // -----------------------------
   // LOCKED STATE
-  // -------------------------------------------------------
+  // -----------------------------
   if (isOpenForPicks) {
     return (
       <View
@@ -184,9 +185,9 @@ export function PickSummaryWidget({
     );
   }
 
-  // -------------------------------------------------------
-  // NORMAL PICK SUMMARY
-  // -------------------------------------------------------
+  // -----------------------------
+  // NORMAL RENDER
+  // -----------------------------
   return (
     <View
       style={{
@@ -210,7 +211,6 @@ export function PickSummaryWidget({
           Pick Trends
         </Text>
 
-        {/* Toggle */}
         <View
           style={{
             flexDirection: "row",

@@ -15,6 +15,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// ⭐ NEW IMPORTS
+import { useRankingTrends } from "@/api";
+import BigMoversWidget from "@/components/big-movers-widget";
+
 type LeaderboardUser = {
   id: string;
   name: string | null;
@@ -48,6 +52,10 @@ export default function LeaderboardScreen() {
   const [isCommissioner, setIsCommissioner] = useState(false);
 
   const [profileMap, setProfileMap] = useState<Record<string, any>>({});
+
+  // ⭐ FIXED: Correct hook usage (no ?? "")
+  const { data: rankingTrends, loading: trendsLoading } =
+    useRankingTrends(leagueId);
 
   // -----------------------------
   // Load user
@@ -495,6 +503,20 @@ export default function LeaderboardScreen() {
             }}
           />
         )}
+
+        {/* ⭐ BIG MOVERS WIDGET (LEAGUE ONLY) */}
+        {activeTab === "league" && leagueId && (
+          <View style={{ marginTop: 24 }}>
+            {trendsLoading ? (
+              <Text style={{ color: themeColors.text + "99" }}>
+                Loading weekly movement...
+              </Text>
+            ) : (
+              <BigMoversWidget teams={rankingTrends?.teams ?? []} />
+            )}
+          </View>
+        )}
+
       </View>
     </SafeAreaView>
   );

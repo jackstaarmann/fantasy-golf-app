@@ -428,3 +428,66 @@ export async function getHoleStats(
     };
   }
 }
+
+// ---------------------------------------------------------
+// Get Ranking Trends (Edge Function)
+// ---------------------------------------------------------
+export async function getRankingTrends(leagueId: string | null) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+
+  const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/get-ranking-trends`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ league_id: leagueId }),
+  });
+
+  console.log("Calling get-ranking-trends with:", leagueId);
+  console.log("get-ranking-trends status:", res.status);
+
+  if (!res.ok) {
+    console.error("get-ranking-trends failed:", res.status);
+    throw new Error("Failed to load ranking trends");
+  }
+
+  return res.json();
+}
+
+export function useRankingTrends(leagueId: string | null) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(!!leagueId); // ← false if no leagueId yet
+
+  useEffect(() => {
+    if (!leagueId) {
+      setLoading(false);
+      setData(null);
+      return;
+    }
+
+    let active = true;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await getRankingTrends(leagueId);
+        if (active) setData(result);
+      } catch (err) {
+        console.error("useRankingTrends error:", err);
+        if (active) setData(null);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    load();
+    return () => { active = false; };
+  }, [leagueId]);
+
+  return { data, loading };
+}

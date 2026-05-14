@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -44,14 +45,14 @@ type Tournament = {
   is_open_for_picks: boolean;
   purse: number | null;
   linger_window: boolean;
+  event_type: string | null;
 };
 
-// Flat individual player entry for the picker
 type PickerPlayer = {
   athleteId: string;
   name: string;
-  teamName: string;   // full team name e.g. "Matt Fitzpatrick / Alex Fitzpatrick"
-  teamId: string;     // leaderboard team id
+  teamName: string;
+  teamId: string;
 };
 
 function buildPickerList(leaderboard: LeaderboardPlayer[]): PickerPlayer[] {
@@ -61,8 +62,7 @@ function buildPickerList(leaderboard: LeaderboardPlayer[]): PickerPlayer[] {
     const names = team.name.split(" / ").map((n) => n.trim());
     const ids = team.athleteIds ?? [];
 
-    if (team.isTeam && names.length === 2 && ids.length === 2) {
-      // Split into two individual entries
+    if ((team as any).isTeam && names.length === 2 && ids.length === 2) {
       players.push({
         athleteId: String(ids[0]),
         name: names[0],
@@ -76,7 +76,6 @@ function buildPickerList(leaderboard: LeaderboardPlayer[]): PickerPlayer[] {
         teamId: team.id,
       });
     } else {
-      // Individual event — just use the player as-is
       players.push({
         athleteId: ids[0] ? String(ids[0]) : team.id,
         name: team.name,
@@ -95,14 +94,13 @@ export default function PicksScreen() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [tournament, setTournament] = useState<Tournament | null>(null);
 
-  const [userPick, setUserPick] = useState<Pick | null>(null);
+  const [userPicks, setUserPicks] = useState<Pick[]>([]);
   const [leaguePicks, setLeaguePicks] = useState<Pick[]>([]);
   const [userInLeague, setUserInLeague] = useState(false);
   const [userLeagueId, setUserLeagueId] = useState<string | null>(null);
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardPlayer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingField, setLoadingField] = useState(true);
 
   const [pickerModalVisible, setPickerModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -128,21 +126,24 @@ export default function PicksScreen() {
         .select('*')
         .order('activation_time', { ascending: true });
 
-      if (!data || data.length === 0) return;
+      if (!data || data.length === 0) {
+        setLoading(false);
+        return;
+      }
 
       let activeEvent: Tournament | null = null;
 
       const inProgress = data.find(t => t.in_progress === true);
-      if (inProgress) activeEvent = inProgress;
+      if (inProgress) activeEvent = inProgress as Tournament;
 
       if (!activeEvent) {
         const lingering = data.find(t => t.linger_window === true);
-        if (lingering) activeEvent = lingering;
+        if (lingering) activeEvent = lingering as Tournament;
       }
 
       if (!activeEvent) {
         const upNext = data.find(t => t.up_next === true);
-        if (upNext) activeEvent = upNext;
+        if (upNext) activeEvent = upNext as Tournament;
       }
 
       if (!activeEvent) {
@@ -150,11 +151,11 @@ export default function PicksScreen() {
           .filter(t => t.is_completed === true)
           .sort(
             (a, b) =>
-              new Date(b.activation_time).getTime() -
-              new Date(a.activation_time).getTime()
+              new Date(a.activation_time ?? 0).getTime() -
+              new Date(b.activation_time ?? 0).getTime()
           )[0];
 
-        activeEvent = completed ?? null;
+        activeEvent = (completed as Tournament) ?? null;
       }
 
       setTournament(activeEvent);
@@ -185,14 +186,12 @@ export default function PicksScreen() {
   // Fetch picks + leaderboard
   // -------------------------
   const fetchPicksAndLeaderboard = async () => {
-    if (!currentUser || !tournament || !userLeagueId) return;
+    if (!currentUser || !tournament) return; // <-- FIXED
 
-    setLoadingField(true);
-
+    // Always load leaderboard
     const leaderboardData = await fetchLeaderboard(Number(tournament.id));
     setLeaderboard(leaderboardData);
 
-    // Match by athleteId — golfer_id stores individual athlete ID now
     const withName = (p: Pick): Pick => {
       for (const team of leaderboardData) {
         const names = team.name.split(" / ").map((n) => n.trim());
@@ -205,7 +204,8 @@ export default function PicksScreen() {
       return { ...p, golferName: "Unknown Golfer" };
     };
 
-    const { data: userPickRaw } = await supabase
+    // Always load user picks
+    const { data: userPicksRaw } = await supabase
       .from('picks')
       .select(`
         id,
@@ -215,29 +215,32 @@ export default function PicksScreen() {
       `)
       .eq('user_id', currentUser.id)
       .eq('tournament_id', tournament.id)
-      .maybeSingle<Pick>();
-
-    setUserPick(userPickRaw ? withName(userPickRaw) : null);
-
-    const { data: leagueRaw } = await supabase
-      .from('picks')
-      .select(`
-        id,
-        user_id,
-        golfer_id,
-        users: user_id ( team_name, name, email )
-      `)
-      .eq('tournament_id', tournament.id)
-      .eq('league_id', userLeagueId)
       .returns<Pick[]>();
 
-    setLeaguePicks((leagueRaw ?? []).map(withName));
+    setUserPicks((userPicksRaw ?? []).map(withName));
 
-    setLoadingField(false);
+    // Only load league picks if user is in a league
+    if (userLeagueId) {
+      const { data: leagueRaw } = await supabase
+        .from('picks')
+        .select(`
+          id,
+          user_id,
+          golfer_id,
+          users: user_id ( team_name, name, email )
+        `)
+        .eq('tournament_id', tournament.id)
+        .eq('league_id', userLeagueId)
+        .returns<Pick[]>();
+
+      setLeaguePicks((leagueRaw ?? []).map(withName));
+    } else {
+      setLeaguePicks([]);
+    }
   };
 
   useEffect(() => {
-    if (currentUser && tournament && userLeagueId !== null) {
+    if (currentUser && tournament) {
       fetchPicksAndLeaderboard();
     }
   }, [currentUser, tournament, userLeagueId]);
@@ -264,36 +267,33 @@ export default function PicksScreen() {
     setPickerModalVisible(true);
   };
 
+  const maxPicks =
+    tournament?.event_type && tournament.event_type.startsWith("MAJOR_")
+      ? 4
+      : 1;
+
+  const picksRemaining = maxPicks - userPicks.length;
+
   const submitPick = async (player: PickerPlayer) => {
     if (!currentUser || !tournament || !tournament.is_open_for_picks) return;
 
-    setUserPick((prev) => ({
-      id: prev?.id ?? 0,
-      user_id: currentUser.id,
-      golfer_id: player.athleteId,
-      users: prev?.users ?? null,
-      golferName: player.name,
-    }));
+    if (userPicks.some(p => p.golfer_id === player.athleteId)) return;
+    if (userPicks.length >= maxPicks) return;
 
-    setLeaguePicks((prev) =>
-      prev.map((p) =>
-        p.user_id === currentUser.id
-          ? { ...p, golfer_id: player.athleteId, golferName: player.name }
-          : p
-      )
-    );
+    await supabase.from('picks').insert({
+      user_id: currentUser.id,
+      tournament_id: tournament.id,
+      golfer_id: player.athleteId,
+      league_id: userLeagueId,
+    });
 
     setPickerModalVisible(false);
+    await fetchPicksAndLeaderboard();
+  };
 
-    await supabase.from('picks').upsert(
-      {
-        user_id: currentUser.id,
-        tournament_id: tournament.id,
-        golfer_id: player.athleteId,
-        league_id: userLeagueId,
-      },
-      { onConflict: 'user_id,tournament_id' }
-    );
+  const deletePick = async (pickId: number) => {
+    await supabase.from('picks').delete().eq('id', pickId);
+    await fetchPicksAndLeaderboard();
   };
 
   // -------------------------
@@ -307,17 +307,6 @@ export default function PicksScreen() {
     );
   }
 
-  if (loadingField) {
-    return (
-      <View style={[styles.centered, { backgroundColor: themeColors.background }]}>
-        <ActivityIndicator size="large" color={themeColors.tint} />
-        <Text style={{ marginTop: 12, fontSize: 16, color: themeColors.text + "99" }}>
-          Loading your pick…
-        </Text>
-      </View>
-    );
-  }
-
   const pickerList = buildPickerList(leaderboard);
 
   const filteredPickerList = pickerList.filter((p) =>
@@ -325,128 +314,175 @@ export default function PicksScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 80 }}
+        showsVerticalScrollIndicator={false}
+      >
 
-      <PickWidget
-        golferId={userPick?.golfer_id ?? null}
-        leaderboard={leaderboard}
-        tournament={tournament}
-      />
+        <PickWidget
+          golferIds={userPicks.map(p => p.golfer_id)}
+          leaderboard={leaderboard}
+          tournament={tournament}
+          onRemove={(golferId) => {
+            const pick = userPicks.find(p => p.golfer_id === golferId);
+            if (pick) deletePick(pick.id);
+          }}
+        />
 
-      {tournament.is_open_for_picks && (
-        <TouchableOpacity
-          style={[
-            styles.makePickButton,
-            {
-              backgroundColor: userPick ? "#0E734A" : themeColors.tint,
-            },
-          ]}
-          onPress={openPicker}
-        >
-          <Text style={[styles.buttonText, { color: themeColors.background }]}>
-            {userPick ? "Change Pick" : "Make Pick"}
-          </Text>
-        </TouchableOpacity>
-      )}
+        {tournament.is_open_for_picks && (
+          <>
+            <TouchableOpacity
+              style={[
+                styles.makePickButton,
+                {
+                  backgroundColor:
+                    userPicks.length > 0 ? "#0E734A" : themeColors.tint,
+                },
+              ]}
+              onPress={openPicker}
+            >
+              <Text style={[styles.buttonText, { color: themeColors.background }]}>
+                {userPicks.length === 0
+                  ? "Make Pick"
+                  : picksRemaining > 0
+                  ? `Add Pick (${picksRemaining} left)`
+                  : "Edit Picks"}
+              </Text>
+            </TouchableOpacity>
 
-      <PickSummaryWidget
-        tournamentId={tournament.id}
-        inLeague={userInLeague}
-        leagueId={userLeagueId}
-        leaderboard={leaderboard}
-        isOpenForPicks={tournament.is_open_for_picks}
-      />
+            <TouchableOpacity
+              style={[
+                styles.makePickButton,
+                { backgroundColor: themeColors.tint, marginTop: 6 }
+              ]}
+              onPress={() => router.push("/(app)/pick-history")}
+            >
+              <Text style={[styles.buttonText, { color: themeColors.background }]}>
+                View Pick History
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
 
-      {!userInLeague && (
-        <View style={{ marginTop: 20 }}>
-          <Text style={{ fontSize: 16, marginBottom: 10, color: themeColors.text }}>
-            You're not in a league yet.
-          </Text>
-
+        {!tournament.is_open_for_picks && (
           <TouchableOpacity
-            style={[styles.makePickButton, { backgroundColor: themeColors.tint }]}
-            onPress={() => router.push('/join-league')}
+            onPress={() => router.push("/(app)/pick-history")}
+            style={{ marginTop: 10 }}
           >
-            <Text style={[styles.buttonText, { color: themeColors.background }]}>
-              Join a League
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.makePickButton, { backgroundColor: themeColors.tint }]}
-            onPress={() => router.push('/create-league')}
-          >
-            <Text style={[styles.buttonText, { color: themeColors.background }]}>
-              Create a League
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {userInLeague && (
-        <>
-          {tournament.is_open_for_picks ? (
-            <View
+            <Text
               style={{
-                marginTop: 30,
-                padding: 16,
-                backgroundColor: themeColors.card,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: themeColors.border,
+                color: themeColors.text + "99",
+                fontSize: 14,
+                fontWeight: "600",
               }}
             >
-              <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 6, color: themeColors.text }}>
-                League Picks Locked
-              </Text>
-              <Text style={{ fontSize: 14, color: themeColors.text + "99" }}>
-                League picks will be shown once picking closes.
-              </Text>
-            </View>
-          ) : (
-            <>
-              <Text style={[styles.sectionTitle, { marginTop: 30, color: themeColors.text }]}>
-                League Picks
-              </Text>
+              View Pick History →
+            </Text>
+          </TouchableOpacity>
+        )}
 
-              <FlatList
-                data={leaguePicks}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => {
-                  const name =
-                    item.users?.team_name ||
-                    item.users?.name ||
-                    item.users?.email ||
-                    "Unknown User";
+        <PickSummaryWidget
+          tournamentId={tournament.id}
+          inLeague={userInLeague}
+          leagueId={userLeagueId}
+          leaderboard={leaderboard}
+          isOpenForPicks={tournament.is_open_for_picks}
+        />
 
-                  const isCurrentUser = item.user_id === currentUser.id;
+        {!userInLeague && (
+          <View style={{ marginTop: 20 }}>
+            <Text style={{ fontSize: 16, marginBottom: 10, color: themeColors.text }}>
+              You're not in a league yet.
+            </Text>
 
-                  return (
-                    <View
-                      style={[
-                        styles.pickItem,
-                        { borderBottomColor: themeColors.border },
-                      ]}
-                    >
-                      <Text
-                        style={
-                          isCurrentUser
-                            ? { fontWeight: "bold", color: themeColors.tint, fontSize: 18 }
-                            : { color: themeColors.text, fontSize: 16 }
-                        }
-                      >
-                        {name}: {item.golferName ?? "Unknown Golfer"}
-                      </Text>
-                    </View>
-                  );
+            <TouchableOpacity
+              style={[styles.makePickButton, { backgroundColor: themeColors.tint }]}
+              onPress={() => router.push('/join-league')}
+            >
+              <Text style={[styles.buttonText, { color: themeColors.background }]}>
+                Join a League
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.makePickButton, { backgroundColor: themeColors.tint }]}
+              onPress={() => router.push('/create-league')}
+            >
+              <Text style={[styles.buttonText, { color: themeColors.background }]}>
+                Create a League
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {userInLeague && (
+          <>
+            {tournament.is_open_for_picks ? (
+              <View
+                style={{
+                  marginTop: 30,
+                  padding: 16,
+                  backgroundColor: themeColors.card,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: themeColors.border,
                 }}
-                ListFooterComponent={<SwingFooter />}
-              />
-            </>
-          )}
-        </>
-      )}
+              >
+                <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 6, color: themeColors.text }}>
+                  League Picks Locked
+                </Text>
+                <Text style={{ fontSize: 14, color: themeColors.text + "99" }}>
+                  League picks will be shown once picking closes.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={[styles.sectionTitle, { marginTop: 30, color: themeColors.text }]}>
+                  League Picks
+                </Text>
 
+                <FlatList
+                  data={leaguePicks}
+                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={({ item }) => {
+                    const name =
+                      item.users?.team_name ||
+                      item.users?.name ||
+                      item.users?.email ||
+                      "Unknown User";
+
+                    const isCurrentUser = item.user_id === currentUser.id;
+
+                    return (
+                      <View
+                        style={[
+                          styles.pickItem,
+                          { borderBottomColor: themeColors.border },
+                        ]}
+                      >
+                        <Text
+                          style={
+                            isCurrentUser
+                              ? { fontWeight: "bold", color: themeColors.tint, fontSize: 18 }
+                              : { color: themeColors.text, fontSize: 16 }
+                          }
+                        >
+                          {name}: {item.golferName ?? "Unknown Golfer"}
+                        </Text>
+                      </View>
+                    );
+                  }}
+                  ListFooterComponent={<SwingFooter />}
+                />
+              </>
+            )}
+          </>
+        )}
+
+      </ScrollView>
+
+      {/* Picker Modal */}
       <Modal visible={pickerModalVisible} animationType="slide">
         <SafeAreaView
           style={[styles.modalContainer, { backgroundColor: themeColors.background }]}
@@ -500,7 +536,6 @@ export default function PicksScreen() {
                   <Text style={[styles.golferName, { color: themeColors.text }]}>
                     {item.name}
                   </Text>
-                  {/* Show partner so user knows who they're teamed with */}
                   {item.teamName !== item.name && (
                     <Text style={{ fontSize: 13, color: themeColors.text + "88", marginTop: 2 }}>
                       Partner: {item.teamName.replace(item.name, "").replace(" / ", "").trim()}
