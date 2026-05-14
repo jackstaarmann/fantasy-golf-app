@@ -4,6 +4,7 @@ import supabase from "@/supabase";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   StyleSheet,
@@ -21,7 +22,8 @@ type PickHistoryItem = {
   finish: string;
   earnings: number;
   toPar: number | null;
-  eventType: string; // ⭐ NEW
+  eventType: string;
+  isCompleted: boolean;
 };
 
 export default function PickHistoryScreen() {
@@ -32,7 +34,7 @@ export default function PickHistoryScreen() {
   const [picks, setPicks] = useState<PickHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [activeTab, setActiveTab] = useState<"regular" | "majors">("regular"); // ⭐ NEW
+  const [activeTab, setActiveTab] = useState<"regular" | "majors">("regular");
 
   const userId = session?.user?.id ?? null;
 
@@ -42,56 +44,88 @@ export default function PickHistoryScreen() {
     async function loadHistory() {
       setLoading(true);
 
+      // 1️⃣ Fetch all picks
       const { data: pickRows, error } = await supabase
         .from("picks")
         .select("id, golfer_id, tournament_id, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
-      if (error) {
+      if (error || !pickRows) {
         console.error("Pick history error:", error);
         setLoading(false);
         return;
       }
 
-      const results: PickHistoryItem[] = [];
+      // Extract unique tournament + golfer IDs
+      const tournamentIds = [...new Set(pickRows.map((p) => p.tournament_id))];
+      const golferIds = [...new Set(pickRows.map((p) => p.golfer_id))];
 
-      for (const p of pickRows) {
-        // Tournament name + event type
-        const { data: tournamentRow } = await supabase
-          .from("tournaments")
-          .select("name, event_type")
-          .eq("id", p.tournament_id)
-          .single();
+      // 2️⃣ Batch fetch tournaments
+      const { data: tournaments } = await supabase
+        .from("tournaments")
+        .select("id, name, event_type, in_progress")
+        .in("id", tournamentIds);
 
-        // Leaderboard fetch
-        let leaderboard: any[] = [];
-        try {
-          const res = await fetch(
-            "https://abanaxcoxomkspaafcpm.supabase.co/functions/v1/get-leaderboard",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${session?.access_token}`,
-              },
-              body: JSON.stringify({ tournament_id: p.tournament_id }),
-            }
-          );
+      const tournamentMap = Object.fromEntries(
+        (tournaments ?? []).map((t) => [t.id, t])
+      );
 
-          const json = await res.json();
-          leaderboard = json.players ?? [];
-        } catch (err) {
-          console.error("Leaderboard fetch error:", err);
-        }
+      // 3️⃣ Batch fetch leaderboards (parallel)
+      const leaderboardMap: Record<string, any[]> = {};
 
-        // Correct golfer lookup
+      await Promise.all(
+        tournamentIds.map(async (tid) => {
+          try {
+            const res = await fetch(
+              "https://abanaxcoxomkspaafcpm.supabase.co/functions/v1/get-leaderboard",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session?.access_token}`,
+                },
+                body: JSON.stringify({ tournament_id: tid }),
+              }
+            );
+
+            const json = await res.json();
+            leaderboardMap[tid] = json.players ?? [];
+          } catch (err) {
+            console.error("Leaderboard fetch error:", err);
+            leaderboardMap[tid] = [];
+          }
+        })
+      );
+
+      // 4️⃣ Batch fetch headshots (parallel)
+      const headshotMap: Record<string, string | null> = {};
+
+      await Promise.all(
+        golferIds.map(async (gid) => {
+          try {
+            const res = await fetch(
+              `https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/athletes/${gid}`
+            );
+            const json = await res.json();
+            headshotMap[gid] = json?.headshot?.href ?? null;
+          } catch {
+            headshotMap[gid] = null;
+          }
+        })
+      );
+
+      // 5️⃣ Build final results
+      const results: PickHistoryItem[] = pickRows.map((p) => {
+        const tournament = tournamentMap[p.tournament_id];
+        const leaderboard = leaderboardMap[p.tournament_id] ?? [];
+
         const golferRow = leaderboard.find((g: any) => {
           const ids = (g.athleteIds ?? []).map(String);
           return ids.includes(String(p.golfer_id));
         });
 
-        // Resolve correct name for team events
+        // Resolve team event names
         let golferName = "Unknown Golfer";
         if (golferRow) {
           const names = golferRow.name.split(" / ").map((n: string) => n.trim());
@@ -100,29 +134,18 @@ export default function PickHistoryScreen() {
           golferName = names[idx] ?? golferRow.name;
         }
 
-        // Headshot fetch
-        let headshot = null;
-        try {
-          const res = await fetch(
-            `https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/athletes/${p.golfer_id}`
-          );
-          const json = await res.json();
-          headshot = json?.headshot?.href ?? null;
-        } catch (err) {
-          console.log("Headshot fetch failed:", err);
-        }
-
-        results.push({
+        return {
           id: p.id,
-          tournamentName: tournamentRow?.name ?? "Unknown Tournament",
+          tournamentName: tournament?.name ?? "Unknown Tournament",
           golferName,
-          headshot,
+          headshot: headshotMap[p.golfer_id] ?? null,
           finish: golferRow?.rank ?? "--",
           earnings: golferRow?.projected_earnings ?? 0,
           toPar: golferRow?.toPar ?? null,
-          eventType: tournamentRow?.event_type ?? "REGULAR", // ⭐ NEW
-        });
-      }
+          eventType: tournament?.event_type ?? "REGULAR",
+          isCompleted: tournament?.in_progress === false,
+        };
+      });
 
       setPicks(results);
       setLoading(false);
@@ -131,9 +154,6 @@ export default function PickHistoryScreen() {
     loadHistory();
   }, [userId]);
 
-  // -----------------------------
-  // FILTER BY TAB
-  // -----------------------------
   const regularPicks = picks.filter(
     (p) => !p.eventType.startsWith("MAJOR_")
   );
@@ -146,15 +166,22 @@ export default function PickHistoryScreen() {
     activeTab === "regular" ? regularPicks : majorPicks;
 
   // -----------------------------
-  // RENDER
+  // LOADING SPINNER
   // -----------------------------
   if (loading) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: themeColors.background }]}
+        style={[
+          styles.container,
+          {
+            backgroundColor: themeColors.background,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
         edges={["top", "left", "right"]}
       >
-        <Text style={{ color: themeColors.text }}>Loading...</Text>
+        <ActivityIndicator size="large" color={themeColors.tint} />
       </SafeAreaView>
     );
   }
@@ -180,7 +207,7 @@ export default function PickHistoryScreen() {
           <View style={{ width: 50 }} />
         </View>
 
-        {/* ⭐ Tabs */}
+        {/* Tabs */}
         <View style={styles.tabs}>
           <TouchableOpacity
             style={[
@@ -226,7 +253,10 @@ export default function PickHistoryScreen() {
             <TouchableOpacity
               style={[
                 styles.card,
-                { backgroundColor: themeColors.card, borderColor: themeColors.border },
+                {
+                  backgroundColor: themeColors.card,
+                  borderColor: themeColors.border,
+                },
               ]}
             >
               <View style={styles.row}>
@@ -249,8 +279,9 @@ export default function PickHistoryScreen() {
 
                   <View style={styles.inline}>
                     <Text style={[styles.result, { color: themeColors.tint }]}>
-                      Finish: {item.finish}
+                      {item.isCompleted ? "Finish" : "Projected"}: {item.finish}
                     </Text>
+
                     <Text style={[styles.result, { color: themeColors.text + "99" }]}>
                       To Par: {item.toPar ?? "--"}
                     </Text>
