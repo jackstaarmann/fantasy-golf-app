@@ -21,6 +21,7 @@ type PickHistoryItem = {
   finish: string;
   earnings: number;
   toPar: number | null;
+  eventType: string; // ⭐ NEW
 };
 
 export default function PickHistoryScreen() {
@@ -30,6 +31,8 @@ export default function PickHistoryScreen() {
 
   const [picks, setPicks] = useState<PickHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [activeTab, setActiveTab] = useState<"regular" | "majors">("regular"); // ⭐ NEW
 
   const userId = session?.user?.id ?? null;
 
@@ -54,10 +57,10 @@ export default function PickHistoryScreen() {
       const results: PickHistoryItem[] = [];
 
       for (const p of pickRows) {
-        // Tournament name
+        // Tournament name + event type
         const { data: tournamentRow } = await supabase
           .from("tournaments")
-          .select("name")
+          .select("name, event_type")
           .eq("id", p.tournament_id)
           .single();
 
@@ -82,9 +85,7 @@ export default function PickHistoryScreen() {
           console.error("Leaderboard fetch error:", err);
         }
 
-        // -----------------------------
-        // FIXED: Correct golfer lookup
-        // -----------------------------
+        // Correct golfer lookup
         const golferRow = leaderboard.find((g: any) => {
           const ids = (g.athleteIds ?? []).map(String);
           return ids.includes(String(p.golfer_id));
@@ -99,9 +100,7 @@ export default function PickHistoryScreen() {
           golferName = names[idx] ?? golferRow.name;
         }
 
-        // -----------------------------
-        // FIXED: Correct headshot fetch
-        // -----------------------------
+        // Headshot fetch
         let headshot = null;
         try {
           const res = await fetch(
@@ -121,6 +120,7 @@ export default function PickHistoryScreen() {
           finish: golferRow?.rank ?? "--",
           earnings: golferRow?.projected_earnings ?? 0,
           toPar: golferRow?.toPar ?? null,
+          eventType: tournamentRow?.event_type ?? "REGULAR", // ⭐ NEW
         });
       }
 
@@ -131,6 +131,23 @@ export default function PickHistoryScreen() {
     loadHistory();
   }, [userId]);
 
+  // -----------------------------
+  // FILTER BY TAB
+  // -----------------------------
+  const regularPicks = picks.filter(
+    (p) => !p.eventType.startsWith("MAJOR_")
+  );
+
+  const majorPicks = picks.filter(
+    (p) => p.eventType.startsWith("MAJOR_")
+  );
+
+  const dataToRender =
+    activeTab === "regular" ? regularPicks : majorPicks;
+
+  // -----------------------------
+  // RENDER
+  // -----------------------------
   if (loading) {
     return (
       <SafeAreaView
@@ -148,6 +165,7 @@ export default function PickHistoryScreen() {
       edges={["top", "left", "right"]}
     >
       <View style={{ flex: 1 }}>
+        {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={[styles.backButton, { color: themeColors.tint }]}>
@@ -162,8 +180,46 @@ export default function PickHistoryScreen() {
           <View style={{ width: 50 }} />
         </View>
 
+        {/* ⭐ Tabs */}
+        <View style={styles.tabs}>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              {
+                borderBottomColor:
+                  activeTab === "regular"
+                    ? themeColors.tint
+                    : themeColors.border,
+              },
+            ]}
+            onPress={() => setActiveTab("regular")}
+          >
+            <Text style={[styles.tabText, { color: themeColors.text }]}>
+              Regular Events
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              {
+                borderBottomColor:
+                  activeTab === "majors"
+                    ? themeColors.tint
+                    : themeColors.border,
+              },
+            ]}
+            onPress={() => setActiveTab("majors")}
+          >
+            <Text style={[styles.tabText, { color: themeColors.text }]}>
+              Majors
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* List */}
         <FlatList
-          data={picks}
+          data={dataToRender}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 40 }}
           renderItem={({ item }) => (
@@ -231,6 +287,23 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 20,
     fontWeight: "700",
+  },
+
+  tabs: {
+    flexDirection: "row",
+    marginBottom: 16,
+  },
+
+  tabButton: {
+    flex: 1,
+    padding: 12,
+    alignItems: "center",
+    borderBottomWidth: 2,
+  },
+
+  tabText: {
+    fontSize: 16,
+    fontWeight: "bold",
   },
 
   card: {

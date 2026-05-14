@@ -367,17 +367,11 @@ export default function PicksScreen() {
 
         {!tournament.is_open_for_picks && (
           <TouchableOpacity
+            style={[styles.makePickButton, { backgroundColor: themeColors.tint, marginTop: 6 }]}
             onPress={() => router.push("/(app)/pick-history")}
-            style={{ marginTop: 10 }}
           >
-            <Text
-              style={{
-                color: themeColors.text + "99",
-                fontSize: 14,
-                fontWeight: "600",
-              }}
-            >
-              View Pick History →
+            <Text style={[styles.buttonText, { color: themeColors.background }]}>
+              View Pick History
             </Text>
           </TouchableOpacity>
         )}
