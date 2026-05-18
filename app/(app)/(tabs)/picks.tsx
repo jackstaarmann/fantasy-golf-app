@@ -1,18 +1,18 @@
 // --- SAME IMPORTS ---
-import { useTheme } from "@/app/providers/ThemeProvider";
+import { useTheme } from "@/providers/ThemeProvider";
 import supabase from '@/supabase';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    FlatList,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';

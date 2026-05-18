@@ -1,17 +1,17 @@
 // --- SAME IMPORTS ---
 import { getActiveTournament, getProjectedSeasonStandings } from '@/api';
-import { useTheme } from "@/app/providers/ThemeProvider";
+import { useTheme } from "@/providers/ThemeProvider";
 import supabase from '@/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    FlatList,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

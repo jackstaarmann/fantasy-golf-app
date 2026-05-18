@@ -1,11 +1,11 @@
-import { useTheme } from "@/app/providers/ThemeProvider";
+import { useTheme } from "@/providers/ThemeProvider";
 import { router } from "expo-router";
 import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 

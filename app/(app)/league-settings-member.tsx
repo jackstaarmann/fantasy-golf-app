@@ -1,4 +1,4 @@
-import { useTheme } from "@/app/providers/ThemeProvider";
+import { useTheme } from "@/providers/ThemeProvider";
 import supabase from "@/supabase";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";

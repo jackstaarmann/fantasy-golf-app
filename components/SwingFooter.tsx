@@ -1,5 +1,5 @@
-import { useTheme } from "@/app/providers/ThemeProvider";
 import SwingLogo from "@/assets/images/Swing.png";
+import { useTheme } from "@/providers/ThemeProvider";
 import React from "react";
 import { Image, StyleSheet, View } from "react-native";
 

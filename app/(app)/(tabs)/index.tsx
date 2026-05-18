@@ -10,11 +10,11 @@ import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAuth } from "../../providers/AuthProvider";
+import { useAuth } from "../../../providers/AuthProvider";
 
-import { useTheme } from "@/app/providers/ThemeProvider";
 import LogoutIcon from "@/assets/images/logout-button.png";
 import SwingFooter from "@/components/SwingFooter"; // ✅ NEW IMPORT
+import { useTheme } from "@/providers/ThemeProvider";
 
 export default function HomePage() {
   const { session } = useAuth();

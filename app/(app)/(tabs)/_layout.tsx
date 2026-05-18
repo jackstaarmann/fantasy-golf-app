@@ -1,23 +1,33 @@
 // app/(app)/(tabs)/_layout.tsx
-import { Colors } from '@/constants/theme';
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { useColorScheme } from 'react-native';
+
+import React from "react";
+
+import { Ionicons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+
+import { useTheme } from "@/providers/ThemeProvider";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const themeColors = Colors[colorScheme ?? 'light'];
+  const { themeColors } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colorScheme === "dark" ? "#fff" : "#007AFF",
-        tabBarInactiveTintColor: colorScheme === "dark" ? "#888" : "#8e8e93",
+
+        tabBarActiveTintColor:
+          themeColors.tint,
+
+        tabBarInactiveTintColor:
+          themeColors.tabIconDefault,
+
         tabBarStyle: {
-          backgroundColor: themeColors.background,
-          borderTopColor: colorScheme === "dark" ? "#333" : "#e0e0e0",
+          backgroundColor:
+            themeColors.background,
+
+          borderTopColor:
+            themeColors.border,
+
           height: 60,
           paddingBottom: 6,
         },
@@ -26,36 +36,59 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: "Home",
+
           tabBarIcon: ({ color }) => (
-            <Ionicons name="home" size={28} color={color} />
+            <Ionicons
+              name="home"
+              size={28}
+              color={color}
+            />
           ),
         }}
       />
+
       <Tabs.Screen
         name="picks"
         options={{
-          title: 'Picks',
+          title: "Picks",
+
           tabBarIcon: ({ color }) => (
-            <Ionicons name="list" size={28} color={color} />
+            <Ionicons
+              name="list"
+              size={28}
+              color={color}
+            />
           ),
         }}
       />
+
       <Tabs.Screen
         name="leaderboard"
         options={{
-          title: 'Leaderboard',
+          title: "Leaderboard",
+
           tabBarIcon: ({ color }) => (
-            <Ionicons name="trophy" size={28} color={color} />
+            <Ionicons
+              name="trophy"
+              size={28}
+              color={color}
+            />
           ),
         }}
       />
+
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: "Profile",
+
           tabBarIcon: ({ color }) => (
-            <Ionicons name="person" size={28} color={color} />
+            <Ionicons
+              name="person"
+              size={28}
+              color={color}
+            />
           ),
         }}
       />

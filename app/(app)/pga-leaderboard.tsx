@@ -1,21 +1,21 @@
 import {
-  fetchLeaderboard,
-  type LeaderboardPlayer,
+    fetchLeaderboard,
+    type LeaderboardPlayer,
 } from "@/api";
-import { useAuth } from "@/app/providers/AuthProvider";
-import { useTheme } from "@/app/providers/ThemeProvider";
 import PlayerBioModal from "@/components/player-bio-modal";
+import { useAuth } from "@/providers/AuthProvider";
+import { useTheme } from "@/providers/ThemeProvider";
 import supabase from "@/supabase";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 

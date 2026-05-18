@@ -1,5 +1,5 @@
-import AuthProvider, { useAuth } from "@/app/providers/AuthProvider";
-import { ThemeProvider } from "@/app/providers/ThemeProvider";
+import AuthProvider, { useAuth } from "@/providers/AuthProvider";
+import { ThemeProvider } from "@/providers/ThemeProvider";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";

@@ -1,15 +1,15 @@
 import { fetchLeaderboard, type LeaderboardPlayer } from "@/api";
-import { useTheme } from "@/app/providers/ThemeProvider";
 import { formatTimeWithTimezone } from "@/components/utils/time";
+import { useTheme } from "@/providers/ThemeProvider";
 import supabase from "@/supabase";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  View
+    ActivityIndicator,
+    Pressable,
+    Text,
+    View
 } from "react-native";
 
 import PlayerBioModal from "@/components/player-bio-modal";

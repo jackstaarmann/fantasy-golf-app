@@ -1,15 +1,15 @@
 // --- imports ---
 import type { LeaderboardPlayer } from "@/api";
 import { fetchAthlete, fetchEventMeta, fetchLeaderboard } from "@/api";
-import { useTheme } from "@/app/providers/ThemeProvider";
+import { useTheme } from "@/providers/ThemeProvider";
 import supabase from "@/supabase";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Image,
-  Text,
-  TouchableOpacity,
-  View
+    Image,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 
 // ---------------------------

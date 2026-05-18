@@ -1,18 +1,18 @@
-import { useTheme } from "@/app/providers/ThemeProvider";
+import { TintPalette } from "@/constants/theme";
+import { useTheme } from "@/providers/ThemeProvider";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAuth } from "../../providers/AuthProvider";
+import { useAuth } from "../../../providers/AuthProvider";
 
-// Timezone list
 const TIMEZONES = Intl.supportedValuesOf
   ? Intl.supportedValuesOf("timeZone")
   : [
@@ -29,22 +29,18 @@ export default function ProfileScreen() {
   const { supabase } = useAuth();
   const router = useRouter();
 
-  // ⭐ GLOBAL THEME — the fix
-  const { theme, setTheme, themeColors } = useTheme();
+  const { theme, setTheme, color, setColor, themeColors } = useTheme();
 
   const [profile, setProfile] = useState<any>(null);
   const [teamName, setTeamName] = useState("");
   const [timezone, setTimezone] = useState("");
-
   const [loading, setLoading] = useState(true);
-
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-
   const [timezoneModalVisible, setTimezoneModalVisible] = useState(false);
   const [timezoneSearch, setTimezoneSearch] = useState("");
 
-  // Load profile
+  // ✅ useEffect before any conditional returns
   useEffect(() => {
     const loadProfile = async () => {
       const {
@@ -62,9 +58,8 @@ export default function ProfileScreen() {
         setProfile(data);
         setTeamName(data.team_name || "");
         setTimezone(data.timezone || "");
-
-        // ⭐ Sync global theme with saved preference
         setTheme(data.theme_preference || "system");
+        setColor(data.color_preference || "green");
       }
 
       setLoading(false);
@@ -73,7 +68,21 @@ export default function ProfileScreen() {
     loadProfile();
   }, []);
 
-  // Save profile
+  // ✅ Conditional returns safely after all hooks
+  if (!themeColors || !color) {
+    return null;
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: themeColors.background }]}
+      >
+        <Text style={{ color: themeColors.text }}>Loading profile...</Text>
+      </SafeAreaView>
+    );
+  }
+
   const saveProfile = async () => {
     if (!profile) return;
 
@@ -97,7 +106,8 @@ export default function ProfileScreen() {
       .update({
         team_name: teamName,
         timezone: timezone || null,
-        theme_preference: theme, // ⭐ Save global theme
+        theme_preference: theme,
+        color_preference: color,
       })
       .eq("id", profile.id);
 
@@ -109,21 +119,10 @@ export default function ProfileScreen() {
     setSuccessMessage("Profile updated.");
   };
 
-  // Logout
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.replace("/login");
   };
-
-  if (loading) {
-    return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: themeColors.background }]}
-      >
-        <Text style={{ color: themeColors.text }}>Loading profile...</Text>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView
@@ -161,7 +160,6 @@ export default function ProfileScreen() {
         <Text style={[styles.label, { color: themeColors.text }]}>
           Timezone
         </Text>
-
         <TouchableOpacity
           style={[
             styles.input,
@@ -184,12 +182,11 @@ export default function ProfileScreen() {
 
         {/* Theme Preference */}
         <Text style={[styles.label, { color: themeColors.text }]}>Theme</Text>
-
         <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
           {(["light", "dark", "system"] as const).map((opt) => (
             <TouchableOpacity
               key={opt}
-              onPress={() => setTheme(opt)} // ⭐ GLOBAL THEME UPDATE
+              onPress={() => setTheme(opt)}
               style={{
                 paddingVertical: 10,
                 paddingHorizontal: 14,
@@ -213,7 +210,28 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* Inline validation */}
+        {/* Color Preference */}
+        <Text style={[styles.label, { color: themeColors.text, marginTop: 20 }]}>
+          App Color
+        </Text>
+        <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
+          {Object.entries(TintPalette).map(([key, value]) => (
+            <TouchableOpacity
+              key={key}
+              onPress={() => setColor(key as any)}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: value,
+                borderWidth: color === key ? 3 : 1,
+                borderColor:
+                  color === key ? themeColors.text : themeColors.border,
+              }}
+            />
+          ))}
+        </View>
+
         {errorMessage !== "" && (
           <Text style={[styles.inlineError, { color: "#FF3B30" }]}>
             {errorMessage}
@@ -231,9 +249,7 @@ export default function ProfileScreen() {
           style={[styles.saveButton, { backgroundColor: themeColors.tint }]}
           onPress={saveProfile}
         >
-          <Text
-            style={[styles.saveText, { color: themeColors.background }]}
-          >
+          <Text style={[styles.saveText, { color: themeColors.background }]}>
             Save Changes
           </Text>
         </TouchableOpacity>
@@ -309,10 +325,7 @@ export default function ProfileScreen() {
               onPress={() => setTimezoneModalVisible(false)}
             >
               <Text
-                style={[
-                  styles.modalCloseText,
-                  { color: themeColors.background },
-                ]}
+                style={[styles.modalCloseText, { color: themeColors.background }]}
               >
                 Close
               </Text>
