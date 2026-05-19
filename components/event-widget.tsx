@@ -6,10 +6,10 @@ import supabase from "@/supabase";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Image,
-    Text,
-    TouchableOpacity,
-    View
+  Image,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 
 // ---------------------------
@@ -127,7 +127,6 @@ export default function HomeEventWidget() {
 
   const [leader, setLeader] = useState<LeaderInfo | null>(null);
 
-  // NEW: store leaderboard for round-completion logic
   const leaderboardRef = useRef<LeaderboardPlayer[]>([]);
 
   // ---------------------------
@@ -335,18 +334,24 @@ export default function HomeEventWidget() {
   // COUNTDOWN (FINAL LOGIC)
   // ---------------------------
   function updateCountdown() {
+    if (!event) {
+      setCountdown("");
+      return;
+    }
+
     let target: Date | null = null;
+    let label = "";
 
-    if (event?.up_next) {
+    if (event.up_next) {
       const raw = firstTeeTimeRef.current ?? teeTime;
-
-      if (raw) {
-        target = new Date(raw);
-      } else {
-        target = new Date(event.activation_time);
-      }
-    } else if (event?.is_completed || event?.linger_window) {
+      target = raw ? new Date(raw) : new Date(event.activation_time);
+      label = "until tee-off";
+    } else if (event.is_completed || event.linger_window) {
       target = getNextTuesdayAt3AMET();
+      label = "until picks open";
+    } else {
+      setCountdown("");
+      return;
     }
 
     if (!target || isNaN(target.getTime())) {
@@ -359,7 +364,7 @@ export default function HomeEventWidget() {
 
     if (diff <= 0) {
       setCountdown(
-        event?.up_next
+        event.up_next
           ? "Teeing off soon"
           : "Picks opening soon"
       );
@@ -369,8 +374,6 @@ export default function HomeEventWidget() {
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
     const minutes = Math.floor((diff / (1000 * 60)) % 60);
-
-    const label = "until tee-off";
 
     setCountdown(`${days}d ${hours}h ${minutes}m ${label}`);
   }
@@ -387,13 +390,13 @@ export default function HomeEventWidget() {
   };
 
   // ---------------------------
-  // STATUS TEXT (FIXED LOGIC)
+  // STATUS TEXT
   // ---------------------------
   let statusText = "";
 
   if (!event) {
     statusText = "";
-  } else if (event?.in_progress) {
+  } else if (event.in_progress) {
     const roundCompleted =
       round !== null &&
       isRoundCompleted(leaderboardRef.current, round);
@@ -403,13 +406,13 @@ export default function HomeEventWidget() {
     } else {
       statusText = round ? `Round ${round} in Progress` : "Live Now";
     }
-  } else if (event?.linger_window) {
+  } else if (event.linger_window) {
     statusText = "Finalizing Results";
-  } else if (event?.up_next) {
+  } else if (event.up_next) {
     statusText = "Rounds Not Started";
-  } else if (event?.is_open_for_picks) {
+  } else if (event.is_open_for_picks) {
     statusText = "Picks Open";
-  } else if (event?.is_completed) {
+  } else if (event.is_completed) {
     statusText = "Tournament Completed";
   } else {
     statusText = "Upcoming Event";
