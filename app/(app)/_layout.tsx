@@ -18,6 +18,7 @@ export default function AppLayout() {
       <Stack.Screen name="league-settings-commissioner" />
       <Stack.Screen name="league-settings-member" />
       <Stack.Screen name="tournament-info" />
+      <Stack.Screen name="ranking-heatmap" />
     </Stack>
   );
 }

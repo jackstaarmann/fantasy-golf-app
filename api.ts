@@ -445,11 +445,13 @@ export async function getRankingTrends(leagueId: string | null) {
       apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ league_id: leagueId }),
+    body: JSON.stringify({ league_id: leagueId }), // ← KEEP JSON.stringify ONLY IF YOUR EDGE FUNCTION CALLS req.json()
   });
+  
 
   console.log("Calling get-ranking-trends with:", leagueId);
   console.log("get-ranking-trends status:", res.status);
+  
 
   if (!res.ok) {
     console.error("get-ranking-trends failed:", res.status);
@@ -461,10 +463,13 @@ export async function getRankingTrends(leagueId: string | null) {
 
 export function useRankingTrends(leagueId: string | null) {
   const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(!!leagueId); // ← false if no leagueId yet
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("useRankingTrends effect fired, leagueId:", leagueId); // ← add this
+
     if (!leagueId) {
+      console.log("useRankingTrends: no leagueId, bailing"); // ← add this
       setLoading(false);
       setData(null);
       return;
@@ -476,11 +481,13 @@ export function useRankingTrends(leagueId: string | null) {
       setLoading(true);
       try {
         const result = await getRankingTrends(leagueId);
+        console.log("useRankingTrends result:", result); // ← add this
         if (active) setData(result);
       } catch (err) {
         console.error("useRankingTrends error:", err);
         if (active) setData(null);
       } finally {
+        console.log("useRankingTrends finally, active:", active); // ← add this
         if (active) setLoading(false);
       }
     }

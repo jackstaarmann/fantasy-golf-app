@@ -1,23 +1,21 @@
-// --- SAME IMPORTS ---
-import { getActiveTournament, getProjectedSeasonStandings } from '@/api';
+import { getActiveTournament, getProjectedSeasonStandings, useRankingTrends } from '@/api';
 import { useTheme } from "@/providers/ThemeProvider";
 import supabase from '@/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// ⭐ NEW IMPORTS
-import { useRankingTrends } from "@/api";
 import BigMoversWidget from "@/components/big-movers-widget";
+import RankingHeatmapWidget from "@/components/ranking-heatmap-widget";
 
 type LeaderboardUser = {
   id: string;
@@ -53,22 +51,14 @@ export default function LeaderboardScreen() {
 
   const [profileMap, setProfileMap] = useState<Record<string, any>>({});
 
-  // ⭐ FIXED: Correct hook usage (no ?? "")
-  const { data: rankingTrends, loading: trendsLoading } =
-    useRankingTrends(leagueId);
+  const { data: rankingTrends } = useRankingTrends(leagueId);
 
-  // -----------------------------
-  // Load user
-  // -----------------------------
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUserId(user?.id ?? null);
     });
   }, []);
 
-  // -----------------------------
-  // Load league membership
-  // -----------------------------
   useEffect(() => {
     if (!userId) return;
 
@@ -83,9 +73,6 @@ export default function LeaderboardScreen() {
       });
   }, [userId]);
 
-  // -----------------------------
-  // Refresh league info on screen focus
-  // -----------------------------
   useFocusEffect(
     useCallback(() => {
       if (!leagueId) return;
@@ -102,18 +89,12 @@ export default function LeaderboardScreen() {
     }, [leagueId])
   );
 
-  // -----------------------------
-  // Load active tournament
-  // -----------------------------
   useEffect(() => {
     getActiveTournament().then((t) => {
       if (t) setTournamentId(String(t.id));
     });
   }, []);
 
-  // -----------------------------
-  // Fetch leaderboard
-  // -----------------------------
   async function fetchLeaderboard(tab: 'global' | 'league') {
     setLoading(true);
 
@@ -194,9 +175,6 @@ export default function LeaderboardScreen() {
     setLoading(false);
   }
 
-  // -----------------------------
-  // Load leaderboard when needed
-  // -----------------------------
   useEffect(() => {
     if (!userId) return;
 
@@ -209,9 +187,6 @@ export default function LeaderboardScreen() {
     }
   }, [activeTab, leagueId, userId]);
 
-  // -----------------------------
-  // Fetch projected standings
-  // -----------------------------
   async function fetchProjected() {
     if (!leagueId || !tournamentId) return;
 
@@ -239,9 +214,6 @@ export default function LeaderboardScreen() {
     }
   }
 
-  // -----------------------------
-  // Movement arrow renderer
-  // -----------------------------
   function renderMovementArrow(movement: number) {
     if (movement > 0) {
       return (
@@ -264,9 +236,6 @@ export default function LeaderboardScreen() {
     );
   }
 
-  // -----------------------------
-  // Compute $ Out of 1st
-  // -----------------------------
   function computeOutOfFirst(rows: LeaderboardUser[]) {
     if (!rows.length) return [];
     const leader = rows[0].total_points;
@@ -277,9 +246,6 @@ export default function LeaderboardScreen() {
     }));
   }
 
-  // -----------------------------
-  // Cycle toggle mode
-  // -----------------------------
   function cycleMode() {
     setMode((prev) => {
       if (prev === 'live') {
@@ -293,16 +259,9 @@ export default function LeaderboardScreen() {
     });
   }
 
-  // -----------------------------
-  // Select correct dataset
-  // -----------------------------
-  let base =
-    activeTab === 'global'
-      ? globalLeaderboard
-      : leagueLeaderboard;
+  let base = activeTab === 'global' ? globalLeaderboard : leagueLeaderboard;
 
   let dataToRender;
-
   if (mode === 'live') {
     dataToRender = base;
   } else if (mode === 'projected') {
@@ -311,17 +270,11 @@ export default function LeaderboardScreen() {
     dataToRender = computeOutOfFirst(base);
   }
 
-  // -----------------------------
-  // Format money
-  // -----------------------------
   function formatMoney(n: number | undefined) {
     if (n === undefined || n === null) return "$0";
     return `$${n.toLocaleString()}`;
   }
 
-  // -----------------------------
-  // RENDER
-  // -----------------------------
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
       <View style={[styles.container, { backgroundColor: themeColors.background }]}>
@@ -363,7 +316,7 @@ export default function LeaderboardScreen() {
             {!leagueId ? (
               <View style={{ marginTop: 20 }}>
                 <Text style={{ fontSize: 16, marginBottom: 10, color: themeColors.text }}>
-                  You’re not in a league yet.
+                  You're not in a league yet.
                 </Text>
 
                 <TouchableOpacity
@@ -402,7 +355,6 @@ export default function LeaderboardScreen() {
                   <TouchableOpacity
                     onPress={() => {
                       if (!leagueId) return;
-
                       if (isCommissioner) {
                         router.push(`/(app)/league-settings-commissioner?leagueId=${leagueId}`);
                       } else {
@@ -504,16 +456,25 @@ export default function LeaderboardScreen() {
           />
         )}
 
-        {/* ⭐ BIG MOVERS WIDGET (LEAGUE ONLY) */}
-        {activeTab === "league" && leagueId && (
+        {/* BIG MOVERS WIDGET */}
+        {leagueId && activeTab === "league" && (
           <View style={{ marginTop: 24 }}>
-            {trendsLoading ? (
-              <Text style={{ color: themeColors.text + "99" }}>
-                Loading weekly movement...
-              </Text>
-            ) : (
-              <BigMoversWidget teams={rankingTrends?.teams ?? []} />
-            )}
+            <BigMoversWidget teams={rankingTrends?.teams ?? []} />
+          </View>
+        )}
+
+        {/* HEATMAP WIDGET */}
+        {leagueId && activeTab === "league" && (
+          <View style={{ marginTop: 24 }}>
+            <RankingHeatmapWidget
+              data={rankingTrends ?? null}
+              onPress={() =>
+                router.push({
+                  pathname: "/(app)/ranking-heatmap",
+                  params: { leagueId },
+                })
+              }
+            />
           </View>
         )}
 

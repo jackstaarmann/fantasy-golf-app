@@ -1,130 +1,130 @@
-import supabase from "@/supabase";
-import React, { useEffect, useState } from "react";
-import { Dimensions, StyleSheet, Text, View } from "react-native";
-import { VictoryAxis, VictoryChart, VictoryLine } from "victory-native";
+import { useTheme } from "@/providers/ThemeProvider";
+import React, { useMemo } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-type RankingTrendsWidgetProps = {
-  leagueId: string;
+type TeamTrend = {
   userId: string;
+  teamName: string;
+  ranks: number[];
 };
 
-type ApiResponse = {
-  weeks: number[];
-  teams: {
-    userId: string;
-    teamName: string;
-    ranks: number[];
-  }[];
+type BigMoversProps = {
+  teams: TeamTrend[];
 };
 
-export default function RankingTrendsWidget({
-  leagueId,
-  userId,
-}: RankingTrendsWidgetProps) {
-  const [loading, setLoading] = useState(true);
-  const [weeks, setWeeks] = useState<number[]>([]);
-  const [teamRanks, setTeamRanks] = useState<number[]>([]);
+export default function BigMoversWidget({ teams }: BigMoversProps) {
+  const { themeColors } = useTheme();
 
-  useEffect(() => {
-    if (!leagueId || !userId) return;
+  const movers = useMemo(() => {
+    if (!teams?.length) return null;
 
-    const fetchTrends = async () => {
-      setLoading(true);
+    const hasTwoWeeks = teams[0].ranks.length >= 2;
+    if (!hasTwoWeeks) return null;
 
-      try {
-        const { data, error } = await supabase.functions.invoke(
-          "get-ranking-trends",
-          {
-            body: { league_id: leagueId },
-          }
-        );
+    const lastIndex = teams[0].ranks.length - 1;
 
-        if (error) throw error;
+    const deltas = teams
+      .map((t) => {
+        const prev = t.ranks[lastIndex - 1];
+        const curr = t.ranks[lastIndex];
+        if (!prev || !curr) return null;
 
-        const res = data as ApiResponse;
+        return {
+          userId: t.userId,
+          teamName: t.teamName,
+          delta: prev - curr,
+        };
+      })
+      .filter(Boolean) as { userId: string; teamName: string; delta: number }[];
 
-        setWeeks(res?.weeks ?? []);
+    if (!deltas.length) return null;
 
-        const currentUser = res?.teams?.find(
-          (t) => t.userId === userId
-        );
+    const sorted = [...deltas].sort((a, b) => b.delta - a.delta);
 
-        setTeamRanks(currentUser?.ranks ?? []);
-      } catch (err) {
-        console.error("Ranking trends error:", err);
-        setWeeks([]);
-        setTeamRanks([]);
-      }
+    const risers = sorted.filter((d) => d.delta > 0).slice(0, 5);
+    const fallers = sorted.filter((d) => d.delta < 0).slice(0, 5);
 
-      setLoading(false);
-    };
+    return { risers, fallers };
+  }, [teams]);
 
-    fetchTrends();
-  }, [leagueId, userId]);
+  const styles = themedStyles(themeColors);
 
-  if (loading) {
+  if (!movers || (!movers.risers.length && !movers.fallers.length)) {
     return (
       <View style={styles.card}>
-        <Text style={styles.text}>Loading trends...</Text>
+        <Text style={styles.title}>Big Movers</Text>
+        <Text style={styles.text}>No significant movement this week</Text>
       </View>
     );
   }
-
-  if (!weeks.length || !teamRanks.length) {
-    return (
-      <View style={styles.card}>
-        <Text style={styles.text}>No trend data available</Text>
-      </View>
-    );
-  }
-
-  const chartData = weeks.map((week, i) => ({
-    x: week,
-    y: teamRanks[i],
-  }));
-
-  const screenWidth = Dimensions.get("window").width;
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Ranking Trends</Text>
+      <Text style={styles.title}>Big Movers</Text>
 
-      <VictoryChart
-        width={screenWidth - 60}
-        height={220}
-      >
-        {/* X axis (weeks) */}
-        <VictoryAxis />
+      {/* Risers */}
+      <Text style={styles.sectionHeader}>⬆️ Biggest Risers</Text>
+      {movers.risers.length ? (
+        movers.risers.map((r) => (
+          <Text key={r.userId} style={styles.riser}>
+            +{r.delta}  {r.teamName}
+          </Text>
+        ))
+      ) : (
+        <Text style={styles.text}>No risers this week</Text>
+      )}
 
-        {/* Y axis (rank — inverted so rank 1 is at top) */}
-        <VictoryAxis dependentAxis inverted />
-
-        <VictoryLine
-          data={chartData}
-          interpolation="natural"
-          style={{
-            data: { stroke: "#4f46e5", strokeWidth: 3 },
-          }}
-        />
-      </VictoryChart>
+      {/* Fallers */}
+      <Text style={[styles.sectionHeader, { marginTop: 12 }]}>
+        ⬇️ Biggest Fallers
+      </Text>
+      {movers.fallers.length ? (
+        movers.fallers.map((f) => (
+          <Text key={f.userId} style={styles.faller}>
+            {f.delta}  {f.teamName}
+          </Text>
+        ))
+      ) : (
+        <Text style={styles.text}>No fallers this week</Text>
+      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  text: {
-    fontSize: 14,
-  },
-});
+function themedStyles(themeColors: any) {
+  return StyleSheet.create({
+    card: {
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+      backgroundColor: themeColors.card,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: "bold",
+      marginBottom: 8,
+      color: themeColors.text,
+    },
+    sectionHeader: {
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 4,
+      color: themeColors.text,
+    },
+    riser: {
+      fontSize: 14,
+      color: themeColors.tint, // your accent color
+      fontWeight: "600",
+    },
+    faller: {
+      fontSize: 14,
+      color: "#ff4d4d", // safe red that works in dark mode
+      fontWeight: "600",
+    },
+    text: {
+      fontSize: 14,
+      color: themeColors.text + "99",
+    },
+  });
+}
