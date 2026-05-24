@@ -5,8 +5,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  FlatList,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -53,6 +53,9 @@ export default function LeaderboardScreen() {
 
   const { data: rankingTrends } = useRankingTrends(leagueId);
 
+  const [cutsEnabled, setCutsEnabled] = useState(false);
+  const [cutPercents, setCutPercents] = useState<number[]>([70, 50, 30]);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUserId(user?.id ?? null);
@@ -79,12 +82,19 @@ export default function LeaderboardScreen() {
 
       supabase
         .from('leagues')
-        .select('invite_code, name')
+        .select('invite_code, name, cuts_enabled, cut1_percent, cut2_percent, cut3_percent')
         .eq('id', leagueId)
         .maybeSingle()
         .then(({ data }) => {
           setInviteCode(data?.invite_code ?? null);
           setLeagueName(data?.name ?? null);
+
+          setCutsEnabled(data?.cuts_enabled ?? false);
+          setCutPercents([
+            data?.cut1_percent ?? 70,
+            data?.cut2_percent ?? 50,
+            data?.cut3_percent ?? 30,
+          ]);
         });
     }, [leagueId])
   );
@@ -277,7 +287,11 @@ export default function LeaderboardScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* Tabs */}
         <View style={styles.tabs}>
@@ -400,74 +414,72 @@ export default function LeaderboardScreen() {
           </>
         )}
 
-        {/* Leaderboard */}
+        {/* Leaderboard rows */}
         {loading ? (
           <Text style={{ marginTop: 16, color: themeColors.text + "99" }}>
             Loading leaderboard...
           </Text>
         ) : (
-          <FlatList
-            data={dataToRender}
-            keyExtractor={(item) => item.id}
-            style={{ marginTop: 16 }}
-            renderItem={({ item, index }) => {
-              const isCurrentUser = item.id === userId;
-              const displayName =
-                item.team_name || item.name || item.email || 'Unknown User';
+          dataToRender.map((item, index) => {
+            const isCurrentUser = item.id === userId;
+            const displayName =
+              item.team_name || item.name || item.email || 'Unknown User';
 
-              return (
-                <View
-                  style={[
-                    styles.row,
-                    {
-                      borderColor: themeColors.border,
-                      backgroundColor: isCurrentUser
-                        ? themeColors.tint + "22"
-                        : themeColors.background,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.rank, { color: themeColors.text }]}>
-                    {index + 1}
+            return (
+              <View
+                key={item.id}
+                style={[
+                  styles.row,
+                  {
+                    borderColor: themeColors.border,
+                    backgroundColor: isCurrentUser
+                      ? themeColors.tint + "22"
+                      : themeColors.background,
+                  },
+                ]}
+              >
+                <Text style={[styles.rank, { color: themeColors.text }]}>
+                  {index + 1}
+                </Text>
+
+                <Text style={[styles.username, { color: themeColors.text }]}>
+                  {displayName}
+                </Text>
+
+                {mode === 'projected' && (
+                  <View style={{ width: 40, alignItems: "center" }}>
+                    {renderMovementArrow(item.movement ?? 0)}
+                  </View>
+                )}
+
+                {mode === 'outOfFirst' ? (
+                  <Text style={[styles.points, { color: themeColors.text }]}>
+                    {formatMoney(item.out_of_first)}
                   </Text>
-
-                  <Text style={[styles.username, { color: themeColors.text }]}>
-                    {displayName}
+                ) : (
+                  <Text style={[styles.points, { color: themeColors.text }]}>
+                    {formatMoney(item.total_points)}
                   </Text>
-
-                  {mode === 'projected' && (
-                    <View style={{ width: 40, alignItems: "center" }}>
-                      {renderMovementArrow(item.movement ?? 0)}
-                    </View>
-                  )}
-
-                  {mode === 'outOfFirst' ? (
-                    <Text style={[styles.points, { color: themeColors.text }]}>
-                      {formatMoney(item.out_of_first)}
-                    </Text>
-                  ) : (
-                    <Text style={[styles.points, { color: themeColors.text }]}>
-                      {formatMoney(item.total_points)}
-                    </Text>
-                  )}
-                </View>
-              );
-            }}
-          />
+                )}
+              </View>
+            );
+          })
         )}
 
-        {/* BIG MOVERS WIDGET */}
+        {/* Big Movers */}
         {leagueId && activeTab === "league" && (
           <View style={{ marginTop: 24 }}>
             <BigMoversWidget teams={rankingTrends?.teams ?? []} />
           </View>
         )}
 
-        {/* HEATMAP WIDGET */}
+        {/* Heatmap */}
         {leagueId && activeTab === "league" && (
           <View style={{ marginTop: 24 }}>
             <RankingHeatmapWidget
               data={rankingTrends ?? null}
+              cutsEnabled={cutsEnabled}
+              cutPercents={cutPercents}
               onPress={() =>
                 router.push({
                   pathname: "/(app)/ranking-heatmap",
@@ -478,7 +490,7 @@ export default function LeaderboardScreen() {
           </View>
         )}
 
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

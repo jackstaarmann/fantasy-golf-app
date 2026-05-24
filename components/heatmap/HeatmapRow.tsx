@@ -1,4 +1,3 @@
-// components/heatmap/HeatmapRow.tsx
 import { useTheme } from "@/providers/ThemeProvider";
 import React, { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -8,9 +7,23 @@ type HeatmapRowProps = {
   teamName: string;
   ranks: number[];      // sliced to last 5 weeks by parent
   totalTeams: number;
+
+  // ⭐ NEW CUT PROPS
+  cutsEnabled?: boolean;
+  cut1?: number;
+  cut2?: number;
+  cut3?: number;
 };
 
-function HeatmapRowBase({ teamName, ranks, totalTeams }: HeatmapRowProps) {
+function HeatmapRowBase({
+  teamName,
+  ranks,
+  totalTeams,
+  cutsEnabled = false,
+  cut1 = 0,
+  cut2 = 0,
+  cut3 = 0,
+}: HeatmapRowProps) {
   const { themeColors } = useTheme();
 
   return (
@@ -31,6 +44,12 @@ function HeatmapRowBase({ teamName, ranks, totalTeams }: HeatmapRowProps) {
             key={idx}
             rank={rank}
             totalTeams={totalTeams}
+
+            // ⭐ PASS CUT INFO DOWN
+            cutsEnabled={cutsEnabled}
+            cut1={cut1}
+            cut2={cut2}
+            cut3={cut3}
           />
         ))}
       </View>

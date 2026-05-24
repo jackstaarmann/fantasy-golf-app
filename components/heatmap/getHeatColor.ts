@@ -1,5 +1,3 @@
-// components/heatmap/getHeatColor.ts
-
 type ThemeColors = {
   mode?: "light" | "dark";
 };
@@ -25,16 +23,45 @@ function hslToHex(h: number, s: number, l: number) {
   return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
 }
 
+// ⭐ NEW: Tier colors for cuts
+function getTierColor(
+  tier: number,
+  themeColors: ThemeColors
+): string {
+  const isDark = themeColors.mode === "dark";
+
+  // Tier 1 = best (Top 30%)
+  // Tier 4 = worst (missed all cuts)
+  const light = ["#2ECC71", "#F1C40F", "#E67E22", "#E74C3C"];
+  const dark = ["#27AE60", "#D4AC0D", "#CA6F1E", "#CB4335"];
+
+  return isDark ? dark[tier - 1] : light[tier - 1];
+}
+
 // rank: 1 = best, totalTeams = max rank
 export function getHeatColor(
   rank: number,
   totalTeams: number,
-  themeColors: ThemeColors
+  themeColors: ThemeColors,
+
+  // ⭐ NEW CUT SETTINGS
+  cutsEnabled?: boolean,
+  cuts?: { cut1: number; cut2: number; cut3: number }
 ): string {
   if (!totalTeams || rank <= 0) return "#999";
 
-  const t = Math.min(Math.max((rank - 1) / Math.max(totalTeams - 1, 1), 0), 1);
+  // ⭐ CUT MODE ENABLED → USE TIER COLORS
+  if (cutsEnabled && cuts) {
+    const { cut1, cut2, cut3 } = cuts;
 
+    if (rank <= cut3) return getTierColor(1, themeColors); // Top 30%
+    if (rank <= cut2) return getTierColor(2, themeColors); // Top 50%
+    if (rank <= cut1) return getTierColor(3, themeColors); // Top 70%
+    return getTierColor(4, themeColors); // Missed all cuts
+  }
+
+  // ⭐ NORMAL MODE (existing gradient)
+  const t = Math.min(Math.max((rank - 1) / Math.max(totalTeams - 1, 1), 0), 1);
   const isDark = themeColors.mode === "dark";
 
   const stops = isDark

@@ -3,12 +3,14 @@ import supabase from "@/supabase";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -26,38 +28,33 @@ export default function LeagueSettingsCommissioner() {
   const [savingName, setSavingName] = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
 
-  // -----------------------------
+  // Cuts
+  const [cutsEnabled, setCutsEnabled] = useState(false);
+  const memberCount = members.length;
+
   // Load user
-  // -----------------------------
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUserId(user?.id ?? null);
     });
   }, []);
 
-  // -----------------------------
-  // Initial league + members load
-  // -----------------------------
+  // Load league + members
   useEffect(() => {
     if (!leagueId) return;
 
-    // League info
     supabase
       .from("leagues")
-      .select("name, invite_code")
+      .select("name, invite_code, cuts_enabled")
       .eq("id", leagueId)
       .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          console.log("load league error:", error);
-          return;
-        }
+      .then(({ data }) => {
         setLeagueName(data?.name ?? "");
         setOriginalLeagueName(data?.name ?? "");
         setInviteCode(data?.invite_code ?? "");
+        setCutsEnabled(data?.cuts_enabled ?? false);
       });
 
-    // Members
     supabase
       .from("league_members")
       .select(`
@@ -69,43 +66,37 @@ export default function LeagueSettingsCommissioner() {
         )
       `)
       .eq("league_id", leagueId)
-      .then(({ data, error }) => {
-        if (error) {
-          console.log("load members error:", error);
-          return;
-        }
+      .then(({ data }) => {
         setMembers(data ?? []);
       });
   }, [leagueId]);
 
-  // -----------------------------
-  // Rename League
-  // -----------------------------
   async function renameLeague() {
     if (!leagueId) return;
     if (leagueName.trim() === originalLeagueName.trim()) return;
 
     setSavingName(true);
 
-    const { error } = await supabase
+    await supabase
       .from("leagues")
       .update({ name: leagueName })
       .eq("id", leagueId);
 
-    if (error) {
-      console.log("renameLeague error:", error);
-      setSavingName(false);
-      return;
-    }
-
-    // DB accepted the change → lock in as original
     setOriginalLeagueName(leagueName);
     setSavingName(false);
   }
 
-  // -----------------------------
-  // Regenerate Invite Code
-  // -----------------------------
+  async function saveCutsSetting(newValue: boolean) {
+    if (!leagueId) return;
+
+    await supabase
+      .from("leagues")
+      .update({ cuts_enabled: newValue })
+      .eq("id", leagueId);
+
+    setCutsEnabled(newValue);
+  }
+
   async function regenerateInviteCode() {
     if (!leagueId) return;
 
@@ -113,221 +104,198 @@ export default function LeagueSettingsCommissioner() {
 
     const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    const { error } = await supabase
+    await supabase
       .from("leagues")
       .update({ invite_code: newCode })
       .eq("id", leagueId);
 
-    if (error) {
-      console.log("regenerateInviteCode error:", error);
-      setRegenLoading(false);
-      return;
-    }
-
-    // DB accepted the change → update local state
     setInviteCode(newCode);
     setRegenLoading(false);
   }
 
-  // -----------------------------
-  // Remove Member
-  // -----------------------------
   async function removeMember(targetUserId: string) {
     if (!leagueId) return;
 
-    const { error } = await supabase
+    await supabase
       .from("league_members")
       .delete()
       .eq("user_id", targetUserId)
       .eq("league_id", leagueId);
 
-    if (error) {
-      console.log("removeMember error:", error);
-      return;
-    }
-
     setMembers((prev) => prev.filter((m) => m.user_id !== targetUserId));
   }
 
-  // -----------------------------
-  // Delete League
-  // -----------------------------
   async function deleteLeague() {
     if (!leagueId) return;
 
-    const { error: membersError } = await supabase
-      .from("league_members")
-      .delete()
-      .eq("league_id", leagueId);
-
-    if (membersError) {
-      console.log("deleteLeague members error:", membersError);
-      return;
-    }
-
-    const { error: leagueError } = await supabase
-      .from("leagues")
-      .delete()
-      .eq("id", leagueId);
-
-    if (leagueError) {
-      console.log("deleteLeague league error:", leagueError);
-      return;
-    }
+    await supabase.from("league_members").delete().eq("league_id", leagueId);
+    await supabase.from("leagues").delete().eq("id", leagueId);
 
     router.replace("/(app)/(tabs)/leaderboard");
   }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      {/* ⭐ SCROLLABLE CONTENT */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
 
-        {/* Back Button */}
-        <TouchableOpacity
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/(app)/(tabs)/leaderboard");
-            }
-          }}
-          style={{ marginBottom: 20 }}
-        >
-          <Text
-            style={{
-              fontSize: 18,
-              color: themeColors.tint,
-              fontWeight: "600",
+          {/* Back Button */}
+          <TouchableOpacity
+            onPress={() => {
+              if (router.canGoBack()) router.back();
+              else router.replace("/(app)/(tabs)/leaderboard");
             }}
+            style={{ marginBottom: 20 }}
           >
-            ← Back
-          </Text>
-        </TouchableOpacity>
-
-        <Text style={[styles.header, { color: themeColors.text }]}>
-          Commissioner Settings
-        </Text>
-
-        {/* League Name Card */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: themeColors.card, borderColor: themeColors.border },
-          ]}
-        >
-          <Text style={[styles.label, { color: themeColors.text }]}>
-            League Name
-          </Text>
-
-          <TextInput
-            value={leagueName}
-            onChangeText={setLeagueName}
-            style={[
-              styles.input,
-              { color: themeColors.text, borderColor: themeColors.border },
-            ]}
-          />
-
-          <TouchableOpacity
-            onPress={renameLeague}
-            disabled={savingName || leagueName.trim() === originalLeagueName.trim()}
-            style={[
-              styles.button,
-              {
-                backgroundColor:
-                  savingName || leagueName.trim() === originalLeagueName.trim()
-                    ? themeColors.border
-                    : themeColors.tint,
-              },
-            ]}
-          >
-            <Text style={{ color: themeColors.background, fontWeight: "700" }}>
-              {savingName ? "Saving..." : "Save Name"}
+            <Text style={{ fontSize: 18, color: themeColors.tint, fontWeight: "600" }}>
+              ← Back
             </Text>
           </TouchableOpacity>
 
-          {/* Invite Code */}
-          <Text
-            style={[
-              styles.label,
-              { color: themeColors.text, marginTop: 20 },
-            ]}
-          >
-            Invite Code
-          </Text>
-          <Text style={[styles.value, { color: themeColors.text }]}>
-            {inviteCode}
+          <Text style={[styles.header, { color: themeColors.text }]}>
+            Commissioner Settings
           </Text>
 
-          <TouchableOpacity
-            onPress={regenerateInviteCode}
-            disabled={regenLoading}
-            style={[
-              styles.button,
-              {
-                backgroundColor: regenLoading
-                  ? themeColors.border
-                  : themeColors.tint,
-                marginTop: 10,
-              },
-            ]}
-          >
-            <Text style={{ color: themeColors.background, fontWeight: "700" }}>
-              {regenLoading ? "Generating..." : "Regenerate Code"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+          {/* League Name Card */}
+          <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <Text style={[styles.label, { color: themeColors.text }]}>League Name</Text>
 
-        {/* Members */}
-        <Text style={[styles.subheader, { color: themeColors.text }]}>
-          Members
-        </Text>
+            <TextInput
+              value={leagueName}
+              onChangeText={setLeagueName}
+              style={[styles.input, { color: themeColors.text, borderColor: themeColors.border }]}
+            />
 
-        <FlatList
-          data={members}
-          keyExtractor={(item) => item.user_id}
-          renderItem={({ item }) => (
-            <View
+            <TouchableOpacity
+              onPress={renameLeague}
+              disabled={savingName || leagueName.trim() === originalLeagueName.trim()}
               style={[
-                styles.memberRow,
-                { borderColor: themeColors.border },
+                styles.button,
+                {
+                  backgroundColor:
+                    savingName || leagueName.trim() === originalLeagueName.trim()
+                      ? themeColors.border
+                      : themeColors.tint,
+                },
               ]}
             >
-              <View>
-                <Text style={{ color: themeColors.text, fontWeight: "600" }}>
-                  {item.users?.name ?? item.users?.email}
+              <Text style={{ color: themeColors.background, fontWeight: "700" }}>
+                {savingName ? "Saving..." : "Save Name"}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Invite Code */}
+            <Text style={[styles.label, { color: themeColors.text, marginTop: 20 }]}>
+              Invite Code
+            </Text>
+            <Text style={[styles.value, { color: themeColors.text }]}>
+              {inviteCode}
+            </Text>
+
+            <TouchableOpacity
+              onPress={regenerateInviteCode}
+              disabled={regenLoading}
+              style={[
+                styles.button,
+                {
+                  backgroundColor: regenLoading ? themeColors.border : themeColors.tint,
+                  marginTop: 10,
+                },
+              ]}
+            >
+              <Text style={{ color: themeColors.background, fontWeight: "700" }}>
+                {regenLoading ? "Generating..." : "Regenerate Code"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Cuts Section */}
+          <Text style={[styles.subheader, { color: themeColors.text }]}>
+            End‑of‑Season Cuts
+          </Text>
+
+          <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={[styles.label, { color: themeColors.text }]}>Enable Cuts</Text>
+
+              <Switch
+                value={cutsEnabled}
+                onValueChange={(val) => {
+                  if (memberCount < 4) return;
+                  saveCutsSetting(val);
+                }}
+                disabled={memberCount < 4}
+                trackColor={{ false: themeColors.border, true: themeColors.tint }}
+                thumbColor={cutsEnabled ? themeColors.background : themeColors.border}
+              />
+            </View>
+
+            {memberCount < 4 && (
+              <Text style={{ color: themeColors.text, marginTop: 10, opacity: 0.7 }}>
+                At least 4 members are required to enable cuts.
+              </Text>
+            )}
+
+            {cutsEnabled && memberCount >= 4 && (
+              <View style={{ marginTop: 16 }}>
+                <Text style={[styles.label, { color: themeColors.text }]}>
+                  Cut 1: Top 70% (after Wyndham)
                 </Text>
-                {item.commissioner_status && (
-                  <Text style={{ color: themeColors.tint, fontSize: 12 }}>
-                    Commissioner
+                <Text style={[styles.label, { color: themeColors.text, marginTop: 6 }]}>
+                  Cut 2: Top 50% (after St. Jude)
+                </Text>
+                <Text style={[styles.label, { color: themeColors.text, marginTop: 6 }]}>
+                  Cut 3: Top 30% (after BMW)
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Members */}
+          <Text style={[styles.subheader, { color: themeColors.text }]}>
+            Members
+          </Text>
+
+          <FlatList
+            data={members}
+            scrollEnabled={false}
+            keyExtractor={(item) => item.user_id}
+            renderItem={({ item }) => (
+              <View style={[styles.memberRow, { borderColor: themeColors.border }]}>
+                <View>
+                  <Text style={{ color: themeColors.text, fontWeight: "600" }}>
+                    {item.users?.name ?? item.users?.email}
                   </Text>
+                  {item.commissioner_status && (
+                    <Text style={{ color: themeColors.tint, fontSize: 12 }}>
+                      Commissioner
+                    </Text>
+                  )}
+                </View>
+
+                {!item.commissioner_status && (
+                  <TouchableOpacity
+                    onPress={() => removeMember(item.user_id)}
+                    style={styles.removeButton}
+                  >
+                    <Text style={{ color: "white", fontWeight: "700" }}>Remove</Text>
+                  </TouchableOpacity>
                 )}
               </View>
+            )}
+          />
 
-              {!item.commissioner_status && (
-                <TouchableOpacity
-                  onPress={() => removeMember(item.user_id)}
-                  style={[styles.removeButton]}
-                >
-                  <Text style={{ color: "white", fontWeight: "700" }}>
-                    Remove
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-        />
+          {/* Danger Zone */}
+          <TouchableOpacity onPress={deleteLeague} style={styles.deleteButton}>
+            <Text style={{ color: "white", fontWeight: "700" }}>Delete League</Text>
+          </TouchableOpacity>
 
-        {/* Danger Zone */}
-        <TouchableOpacity
-          onPress={deleteLeague}
-          style={[styles.deleteButton]}
-        >
-          <Text style={{ color: "white", fontWeight: "700" }}>
-            Delete League
-          </Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

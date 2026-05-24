@@ -4,15 +4,15 @@ import supabase from '@/supabase';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -186,9 +186,8 @@ export default function PicksScreen() {
   // Fetch picks + leaderboard
   // -------------------------
   const fetchPicksAndLeaderboard = async () => {
-    if (!currentUser || !tournament) return; // <-- FIXED
+    if (!currentUser || !tournament) return;
 
-    // Always load leaderboard
     const leaderboardData = await fetchLeaderboard(Number(tournament.id));
     setLeaderboard(leaderboardData);
 
@@ -204,7 +203,6 @@ export default function PicksScreen() {
       return { ...p, golferName: "Unknown Golfer" };
     };
 
-    // Always load user picks
     const { data: userPicksRaw } = await supabase
       .from('picks')
       .select(`
@@ -219,7 +217,6 @@ export default function PicksScreen() {
 
     setUserPicks((userPicksRaw ?? []).map(withName));
 
-    // Only load league picks if user is in a league
     if (userLeagueId) {
       const { data: leagueRaw } = await supabase
         .from('picks')
@@ -436,10 +433,13 @@ export default function PicksScreen() {
                   League Picks
                 </Text>
 
+                {/* ⭐ UPDATED LEAGUE PICKS LIST ⭐ */}
                 <FlatList
                   data={leaguePicks}
                   keyExtractor={(item) => item.id.toString()}
-                  renderItem={({ item }) => {
+                  renderItem={({ item, index }) => {
+                    const placement = index + 1;
+
                     const name =
                       item.users?.team_name ||
                       item.users?.name ||
@@ -450,17 +450,39 @@ export default function PicksScreen() {
 
                     return (
                       <View
-                        style={[
-                          styles.pickItem,
-                          { borderBottomColor: themeColors.border },
-                        ]}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          paddingVertical: 12,
+                          paddingHorizontal: 8,
+                          backgroundColor: isCurrentUser
+                            ? themeColors.tint + "22"
+                            : themeColors.background,
+                          borderBottomWidth: 1,
+                          borderBottomColor: themeColors.border,
+                          borderRadius: 6,
+                        }}
                       >
+                        {/* Placement Number */}
                         <Text
-                          style={
-                            isCurrentUser
-                              ? { fontWeight: "bold", color: themeColors.tint, fontSize: 18 }
-                              : { color: themeColors.text, fontSize: 16 }
-                          }
+                          style={{
+                            width: 30,
+                            fontSize: 16,
+                            fontWeight: "700",
+                            color: themeColors.text,
+                          }}
+                        >
+                          {placement}
+                        </Text>
+
+                        {/* Name + Golfer */}
+                        <Text
+                          style={{
+                            flex: 1,
+                            fontSize: 16,
+                            color: themeColors.text,
+                            fontWeight: "400",
+                          }}
                         >
                           {name}: {item.golferName ?? "Unknown Golfer"}
                         </Text>
@@ -557,13 +579,22 @@ export default function PicksScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
-  buttonText: { fontWeight: '600', fontSize: 16 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
+
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  buttonText: { fontWeight: "600", fontSize: 16 },
+
+  sectionTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 10 },
+
   pickItem: {
     paddingVertical: 8,
     borderBottomWidth: 1,
   },
-  centered: { alignItems: 'center', marginTop: 50 },
+
   makePickButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -571,18 +602,23 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 10,
   },
+
   modalContainer: { flex: 1, padding: 20 },
-  modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 15 },
+
+  modalTitle: { fontSize: 22, fontWeight: "bold", marginBottom: 15 },
+
   golferItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,
   },
+
   golferName: { fontSize: 16 },
+
   closeButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
   },
 });

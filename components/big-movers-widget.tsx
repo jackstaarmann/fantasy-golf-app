@@ -53,7 +53,7 @@ export default function BigMoversWidget({ teams }: BigMoversProps) {
     return (
       <View style={styles.card}>
         <Text style={styles.title}>Big Movers</Text>
-        <Text style={styles.text}>No significant movement this week</Text>
+        <Text style={styles.text}>No movement this week!</Text>
       </View>
     );
   }
@@ -114,7 +114,7 @@ function themedStyles(themeColors: any) {
     },
     riser: {
       fontSize: 14,
-      color: themeColors.tint, // your accent color
+      color: "#0E734A", // your accent color
       fontWeight: "600",
     },
     faller: {
