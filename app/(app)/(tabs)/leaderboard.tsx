@@ -1,4 +1,4 @@
-import { getActiveTournament, getProjectedSeasonStandings, useRankingTrends } from '@/api';
+import { getProjectedSeasonStandings, useAvailableTournaments, useRankingTrends } from '@/api';
 import { useTheme } from "@/providers/ThemeProvider";
 import supabase from '@/supabase';
 import { useFocusEffect } from '@react-navigation/native';
@@ -53,15 +53,23 @@ export default function LeaderboardScreen() {
 
   const { data: rankingTrends } = useRankingTrends(leagueId);
 
+  const { tournaments: availableTournaments } = useAvailableTournaments();
+
   const [cutsEnabled, setCutsEnabled] = useState(false);
   const [cutPercents, setCutPercents] = useState<number[]>([70, 50, 30]);
 
+  // ---------------------------------------------------------
+  // Set userId
+  // ---------------------------------------------------------
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUserId(user?.id ?? null);
     });
   }, []);
 
+  // ---------------------------------------------------------
+  // Set leagueId + commissioner status
+  // ---------------------------------------------------------
   useEffect(() => {
     if (!userId) return;
 
@@ -76,6 +84,19 @@ export default function LeaderboardScreen() {
       });
   }, [userId]);
 
+  // ---------------------------------------------------------
+  // Set tournamentId using your hook (THIS FIXES PROJECTIONS)
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (!availableTournaments || availableTournaments.length === 0) return;
+
+    const primary = availableTournaments[0]; // same logic as homepage
+    setTournamentId(String(primary.id));
+  }, [availableTournaments]);
+
+  // ---------------------------------------------------------
+  // Load league metadata
+  // ---------------------------------------------------------
   useFocusEffect(
     useCallback(() => {
       if (!leagueId) return;
@@ -99,12 +120,9 @@ export default function LeaderboardScreen() {
     }, [leagueId])
   );
 
-  useEffect(() => {
-    getActiveTournament().then((t) => {
-      if (t) setTournamentId(String(t.id));
-    });
-  }, []);
-
+  // ---------------------------------------------------------
+  // Fetch leaderboard (global or league)
+  // ---------------------------------------------------------
   async function fetchLeaderboard(tab: 'global' | 'league') {
     setLoading(true);
 
@@ -185,6 +203,9 @@ export default function LeaderboardScreen() {
     setLoading(false);
   }
 
+  // ---------------------------------------------------------
+  // Auto-fetch leaderboard when switching tabs
+  // ---------------------------------------------------------
   useEffect(() => {
     if (!userId) return;
 
@@ -197,6 +218,9 @@ export default function LeaderboardScreen() {
     }
   }, [activeTab, leagueId, userId]);
 
+  // ---------------------------------------------------------
+  // Fetch projected standings (NOW WORKS)
+  // ---------------------------------------------------------
   async function fetchProjected() {
     if (!leagueId || !tournamentId) return;
 
@@ -224,6 +248,9 @@ export default function LeaderboardScreen() {
     }
   }
 
+  // ---------------------------------------------------------
+  // Movement arrow
+  // ---------------------------------------------------------
   function renderMovementArrow(movement: number) {
     if (movement > 0) {
       return (
@@ -246,6 +273,9 @@ export default function LeaderboardScreen() {
     );
   }
 
+  // ---------------------------------------------------------
+  // Out-of-first mode
+  // ---------------------------------------------------------
   function computeOutOfFirst(rows: LeaderboardUser[]) {
     if (!rows.length) return [];
     const leader = rows[0].total_points;
@@ -256,6 +286,9 @@ export default function LeaderboardScreen() {
     }));
   }
 
+  // ---------------------------------------------------------
+  // Toggle mode
+  // ---------------------------------------------------------
   function cycleMode() {
     setMode((prev) => {
       if (prev === 'live') {
@@ -285,6 +318,9 @@ export default function LeaderboardScreen() {
     return `$${n.toLocaleString()}`;
   }
 
+  // ---------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
       <ScrollView

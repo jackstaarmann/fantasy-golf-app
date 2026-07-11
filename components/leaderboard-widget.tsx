@@ -6,10 +6,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Pressable,
-    Text,
-    View
+  ActivityIndicator,
+  Pressable,
+  Text,
+  View
 } from "react-native";
 
 import PlayerBioModal from "@/components/player-bio-modal";
@@ -38,7 +38,13 @@ function computeTournamentRound(players: LeaderboardPlayer[]): number {
   return maxActiveRound || 1;
 }
 
-export default function LeaderboardWidget() {
+type LeaderboardWidgetProps = {
+  tournamentId?: string | number;
+};
+
+export default function LeaderboardWidget({
+  tournamentId: selectedTournamentId,
+}: LeaderboardWidgetProps) {
   const router = useRouter();
   const { themeColors } = useTheme();
 
@@ -119,10 +125,12 @@ export default function LeaderboardWidget() {
   }
 
   async function loadLeaderboard() {
-    if (!tournamentId) return;
+if (!selectedTournamentId) return;
 
-    try {
-      const data = await fetchLeaderboard(tournamentId);
+try {
+  const data = await fetchLeaderboard(
+    Number(selectedTournamentId)
+  );
 
       const round = computeTournamentRound(data);
       setCurrentRound(round);
@@ -155,7 +163,7 @@ export default function LeaderboardWidget() {
     const interval = setInterval(loadLeaderboard, 10000);
 
     return () => clearInterval(interval);
-  }, [tournamentId]);
+  }, [selectedTournamentId]);
 
   return (
     <View

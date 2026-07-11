@@ -1,8 +1,11 @@
+import { uploadProfilePicture } from "@/components/utils/upload-profile-picture";
 import { TintPalette } from "@/constants/theme";
 import { useTheme } from "@/providers/ThemeProvider";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -39,6 +42,7 @@ export default function ProfileScreen() {
   const [successMessage, setSuccessMessage] = useState("");
   const [timezoneModalVisible, setTimezoneModalVisible] = useState(false);
   const [timezoneSearch, setTimezoneSearch] = useState("");
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
 
   // ✅ useEffect before any conditional returns
   useEffect(() => {
@@ -60,6 +64,7 @@ export default function ProfileScreen() {
         setTimezone(data.timezone || "");
         setTheme(data.theme_preference || "system");
         setColor(data.color_preference || "green");
+        setProfilePicture(data.profile_picture || null);
       }
 
       setLoading(false);
@@ -82,6 +87,45 @@ export default function ProfileScreen() {
       </SafeAreaView>
     );
   }
+
+  const pickImage = async () => {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ["images"],
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.8,
+  });
+
+  if (!result.canceled) {
+    const imageUri = result.assets[0].uri;
+
+    // Show image immediately
+    setProfilePicture(imageUri);
+
+    // Upload image to Supabase Storage
+    const uploadedUrl = await uploadProfilePicture(
+      profile.id,
+      imageUri
+    );
+
+    if (uploadedUrl) {
+      // Save URL to user profile
+      const { error } = await supabase
+        .from("users")
+        .update({
+          profile_picture: uploadedUrl,
+        })
+        .eq("id", profile.id);
+
+      if (error) {
+        console.error("Failed saving profile picture:", error);
+      } else {
+        // Replace local URI with permanent URL
+        setProfilePicture(uploadedUrl);
+      }
+    }
+  }
+};
 
   const saveProfile = async () => {
     if (!profile) return;
@@ -129,13 +173,72 @@ export default function ProfileScreen() {
       style={[styles.container, { backgroundColor: themeColors.background }]}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: themeColors.text }]}>Profile</Text>
+        <View style={styles.profileHeader}>
+  <View style={{ flex: 1 }}>
+    <Text style={[styles.title, { color: themeColors.text }]}>
+      Profile
+    </Text>
 
-        {/* Email */}
-        <Text style={[styles.label, { color: themeColors.text }]}>Email</Text>
-        <Text style={[styles.value, { color: themeColors.text }]}>
-          {profile.email}
-        </Text>
+    <Text style={[styles.label, { color: themeColors.text }]}>
+      Email
+    </Text>
+
+    <Text style={[styles.value, { color: themeColors.text }]}>
+      {profile.email}
+    </Text>
+  </View>
+
+  <View style={styles.avatarSection}>
+    <View
+    style={[
+      styles.avatar,
+      {
+        backgroundColor: themeColors.card,
+        borderColor: themeColors.border,
+      },
+    ]}
+  >
+    {profilePicture ? (
+      <Image
+        source={{ uri: profilePicture }}
+        style={{
+          width: "100%",
+          height: "100%",
+        }}
+      />
+    ) : (
+      <Text
+        style={{
+          color: themeColors.text,
+          fontSize: 42,
+          fontWeight: "700",
+        }}
+      >
+        {teamName?.[0]?.toUpperCase() ||
+          profile.email?.[0]?.toUpperCase() ||
+          "?"}
+      </Text>
+    )}
+  </View>
+
+    <TouchableOpacity
+      onPress={pickImage}
+      style={[
+        styles.avatarButton,
+        { backgroundColor: themeColors.tint },
+      ]}
+    >
+      <Text
+        style={{
+          color: themeColors.background,
+          fontWeight: "600",
+        }}
+      >
+        Change Photo
+      </Text>
+    </TouchableOpacity>
+  </View>
+</View>
 
         {/* Team Name */}
         <Text style={[styles.label, { color: themeColors.text }]}>
@@ -342,7 +445,7 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 32,
-    marginBottom: 30,
+    marginBottom: 20,
     fontWeight: "bold",
   },
 
@@ -446,5 +549,34 @@ const styles = StyleSheet.create({
   modalCloseText: {
     fontWeight: "600",
     fontSize: 16,
+  },
+
+  profileHeader: {
+  flexDirection: "row",
+  alignItems: "flex-start",
+  marginBottom: 20,
+  },
+
+  avatarSection: {
+    alignItems: "center",
+    marginLeft: 20,
+    paddingRight: 20,
+  },
+
+  avatar: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  avatarButton: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
 });

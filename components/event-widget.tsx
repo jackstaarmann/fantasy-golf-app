@@ -107,10 +107,16 @@ function isFakeRound4(leaderboard: LeaderboardPlayer[]): boolean {
   );
 }
 
+  type EventWidgetProps = {
+    tournamentId?: string | number;
+  };
+
 // ---------------------------
 // COMPONENT
 // ---------------------------
-export default function HomeEventWidget() {
+export default function HomeEventWidget({
+  tournamentId,
+}: EventWidgetProps) {
   const router = useRouter();
   const { themeColors } = useTheme();
 
@@ -133,8 +139,10 @@ export default function HomeEventWidget() {
   // INITIAL LOAD
   // ---------------------------
   useEffect(() => {
+  if (tournamentId) {
     loadData();
-  }, []);
+  }
+}, [tournamentId]);
 
   // ---------------------------
   // COUNTDOWN EFFECT
@@ -156,59 +164,19 @@ export default function HomeEventWidget() {
     } = await supabase.auth.getUser();
     setUser(user);
 
-    const { data } = await supabase
-      .from("tournaments")
-      .select("*")
-      .order("activation_time", { ascending: true });
+let activeEvent: any = null;
 
-    let activeEvent: any = null;
+if (tournamentId) {
+  const { data } = await supabase
+    .from("tournaments")
+    .select("*")
+    .eq("id", tournamentId)
+    .maybeSingle();
 
-    if (data && data.length > 0) {
-      const inProgress = data.find((t) => t.in_progress === true);
-      if (inProgress) activeEvent = inProgress;
+  activeEvent = data;
+}
 
-      if (!activeEvent) {
-        const lingering = data.find((t) => t.linger_window === true);
-        if (lingering) activeEvent = lingering;
-      }
-
-      if (!activeEvent) {
-        const upNext = data.find((t) => t.up_next === true);
-        if (upNext) activeEvent = upNext;
-      }
-
-      if (!activeEvent) {
-        const completed =
-          [...data]
-            .filter((t) => t.is_completed === true)
-            .sort(
-              (a, b) =>
-                new Date(b.activation_time).getTime() -
-                new Date(a.activation_time).getTime()
-            )[0] ?? null;
-
-        activeEvent = completed;
-      }
-
-      let next = null;
-
-      if (activeEvent) {
-        next =
-          [...data]
-            .filter(
-              (t) =>
-                new Date(t.activation_time).getTime() >
-                new Date(activeEvent.activation_time).getTime()
-            )
-            .sort(
-              (a, b) =>
-                new Date(a.activation_time).getTime() -
-                new Date(b.activation_time).getTime()
-            )[0] ?? null;
-      }
-
-      setNextEvent(next ?? null);
-    }
+setNextEvent(null);
 
     setEvent(activeEvent);
 

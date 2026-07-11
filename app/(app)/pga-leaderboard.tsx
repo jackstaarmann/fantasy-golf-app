@@ -1,21 +1,22 @@
 import {
-    fetchLeaderboard,
-    type LeaderboardPlayer,
+  fetchLeaderboard,
+  type LeaderboardPlayer,
 } from "@/api";
 import PlayerBioModal from "@/components/player-bio-modal";
 import { useAuth } from "@/providers/AuthProvider";
 import { useTheme } from "@/providers/ThemeProvider";
 import supabase from "@/supabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -82,6 +83,8 @@ export default function PGALeaderboard() {
   // Search state
   const [search, setSearch] = useState("");
 
+  const SELECTED_TOURNAMENT_KEY = "selectedTournamentId";
+
   if (!user) {
     return (
       <SafeAreaView
@@ -120,33 +123,69 @@ export default function PGALeaderboard() {
   }
 
   async function loadTournament() {
-    const { data } = await supabase
-      .from("tournaments")
-      .select("*")
-      .order("activation_time", { ascending: true });
+  const { data } = await supabase
+    .from("tournaments")
+    .select("*")
+    .order("activation_time", { ascending: true });
 
-    if (!data || data.length === 0) return;
+  if (!data || data.length === 0) return;
 
-    const inProgress = data.find((t) => t.in_progress);
-    const linger = data.find((t) => t.linger_window);
-    const upNext = data.find((t) => t.up_next);
 
-    const completed = [...data]
-      .filter((t) => t.is_completed)
-      .sort(
-        (a, b) =>
-          new Date(b.activation_time).getTime() -
-          new Date(a.activation_time).getTime()
-      )[0];
+  // -----------------------------
+  // CHECK SAVED TOURNAMENT
+  // -----------------------------
+  const savedTournamentId =
+    await AsyncStorage.getItem(
+      SELECTED_TOURNAMENT_KEY
+    );
 
-    const event = inProgress || linger || upNext || completed || null;
+  const savedTournament = savedTournamentId
+    ? data.find(
+        (t) =>
+          String(t.id) === savedTournamentId
+      )
+    : null;
 
-    if (event) {
-      setTournamentId(Number(event.id));
-      setTournamentName(event.name);
-      setTournament(event);
-    }
+
+  // -----------------------------
+  // FALLBACK ACTIVE TOURNAMENT
+  // -----------------------------
+  const inProgress = data.find(
+    (t) => t.in_progress
+  );
+
+  const linger = data.find(
+    (t) => t.linger_window
+  );
+
+  const upNext = data.find(
+    (t) => t.up_next
+  );
+
+  const completed = [...data]
+    .filter((t) => t.is_completed)
+    .sort(
+      (a, b) =>
+        new Date(b.activation_time).getTime() -
+        new Date(a.activation_time).getTime()
+    )[0];
+
+
+  const event =
+    savedTournament ??
+    inProgress ??
+    linger ??
+    upNext ??
+    completed ??
+    null;
+
+
+  if (event) {
+    setTournamentId(Number(event.id));
+    setTournamentName(event.name);
+    setTournament(event);
   }
+}
 
   async function loadLeaderboard() {
     if (!tournamentId) return;
@@ -161,19 +200,17 @@ export default function PGALeaderboard() {
     }
   }
 
-  useEffect(() => {
+  useFocusEffect(
+  React.useCallback(() => {
     async function init() {
+      setLoading(true);
       await loadUserTimezone();
       await loadTournament();
     }
-    init();
-  }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadUserTimezone();
-    }, [])
-  );
+    init();
+  }, [])
+);
 
   useEffect(() => {
     if (!tournamentId) return;

@@ -7,18 +7,19 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { LeaderboardPlayer } from '@/api';
-import { fetchLeaderboard } from '@/api';
+import { fetchLeaderboard, useAvailableTournaments } from '@/api';
 import { PickSummaryWidget } from '@/components/pick-summary-widget';
 import PickWidget from '@/components/pick-widget';
 import SwingFooter from "@/components/SwingFooter";
@@ -92,7 +93,6 @@ export default function PicksScreen() {
   const { themeColors } = useTheme();
 
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [tournament, setTournament] = useState<Tournament | null>(null);
 
   const [userPicks, setUserPicks] = useState<Pick[]>([]);
   const [leaguePicks, setLeaguePicks] = useState<Pick[]>([]);
@@ -105,6 +105,9 @@ export default function PicksScreen() {
   const [pickerModalVisible, setPickerModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const { tournaments: availableTournaments } = useAvailableTournaments();
+  const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
+
   // -------------------------
   // Fetch current user
   // -------------------------
@@ -115,55 +118,15 @@ export default function PicksScreen() {
   }, []);
 
   // -------------------------
-  // Fetch tournament
+  // Set active tournament from available tournaments
   // -------------------------
   useEffect(() => {
-    const loadTournament = async () => {
-      setLoading(true);
+    if (!availableTournaments || availableTournaments.length === 0) return;
+    setActiveTournamentId(String(availableTournaments[0].id));
+  }, [availableTournaments]);
 
-      const { data } = await supabase
-        .from('tournaments')
-        .select('*')
-        .order('activation_time', { ascending: true });
-
-      if (!data || data.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      let activeEvent: Tournament | null = null;
-
-      const inProgress = data.find(t => t.in_progress === true);
-      if (inProgress) activeEvent = inProgress as Tournament;
-
-      if (!activeEvent) {
-        const lingering = data.find(t => t.linger_window === true);
-        if (lingering) activeEvent = lingering as Tournament;
-      }
-
-      if (!activeEvent) {
-        const upNext = data.find(t => t.up_next === true);
-        if (upNext) activeEvent = upNext as Tournament;
-      }
-
-      if (!activeEvent) {
-        const completed = [...data]
-          .filter(t => t.is_completed === true)
-          .sort(
-            (a, b) =>
-              new Date(a.activation_time ?? 0).getTime() -
-              new Date(b.activation_time ?? 0).getTime()
-          )[0];
-
-        activeEvent = (completed as Tournament) ?? null;
-      }
-
-      setTournament(activeEvent);
-      setLoading(false);
-    };
-
-    loadTournament();
-  }, []);
+  const activeTournament: Tournament | null =
+    availableTournaments.find((t: any) => String(t.id) === activeTournamentId) ?? null;
 
   // -------------------------
   // Fetch league membership
@@ -183,10 +146,12 @@ export default function PicksScreen() {
   }, [currentUser]);
 
   // -------------------------
-  // Fetch picks + leaderboard
+  // Fetch picks + leaderboard for a given tournament
   // -------------------------
-  const fetchPicksAndLeaderboard = async () => {
+  const fetchPicksAndLeaderboard = async (tournament: Tournament) => {
     if (!currentUser || !tournament) return;
+
+    setLoading(true);
 
     const leaderboardData = await fetchLeaderboard(Number(tournament.id));
     setLeaderboard(leaderboardData);
@@ -234,27 +199,30 @@ export default function PicksScreen() {
     } else {
       setLeaguePicks([]);
     }
+
+    setLoading(false);
   };
 
+  // initial load (like home screen: driven by user + league, not tab change)
   useEffect(() => {
-    if (currentUser && tournament) {
-      fetchPicksAndLeaderboard();
+    if (currentUser && activeTournament) {
+      fetchPicksAndLeaderboard(activeTournament);
     }
-  }, [currentUser, tournament, userLeagueId]);
+  }, [currentUser, userLeagueId, activeTournament]);
 
   // -------------------------
-  // Quiet leaderboard refresh
+  // Quiet leaderboard refresh for active tournament
   // -------------------------
   useEffect(() => {
-    if (!tournament) return;
+    if (!activeTournament) return;
 
     const interval = setInterval(async () => {
-      const leaderboardData = await fetchLeaderboard(Number(tournament.id));
+      const leaderboardData = await fetchLeaderboard(Number(activeTournament.id));
       setLeaderboard(leaderboardData);
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [tournament]);
+  }, [activeTournament]);
 
   // -------------------------
   // Picker
@@ -265,38 +233,45 @@ export default function PicksScreen() {
   };
 
   const maxPicks =
-    tournament?.event_type && tournament.event_type.startsWith("MAJOR_")
+    activeTournament?.event_type && activeTournament.event_type.startsWith("MAJOR_")
       ? 4
       : 1;
 
   const picksRemaining = maxPicks - userPicks.length;
 
   const submitPick = async (player: PickerPlayer) => {
-    if (!currentUser || !tournament || !tournament.is_open_for_picks) return;
+    if (!currentUser || !activeTournament || !activeTournament.is_open_for_picks) return;
 
     if (userPicks.some(p => p.golfer_id === player.athleteId)) return;
     if (userPicks.length >= maxPicks) return;
 
     await supabase.from('picks').insert({
       user_id: currentUser.id,
-      tournament_id: tournament.id,
+      tournament_id: activeTournament.id,
       golfer_id: player.athleteId,
       league_id: userLeagueId,
     });
 
     setPickerModalVisible(false);
-    await fetchPicksAndLeaderboard();
+    await fetchPicksAndLeaderboard(activeTournament);
   };
 
   const deletePick = async (pickId: number) => {
-    await supabase.from('picks').delete().eq('id', pickId);
-    await fetchPicksAndLeaderboard();
+    if (!activeTournament) return;
+
+    await supabase
+      .from('picks')
+      .delete()
+      .eq('id', pickId)
+      .eq('tournament_id', activeTournament.id);
+
+    await fetchPicksAndLeaderboard(activeTournament);
   };
 
   // -------------------------
   // Render
   // -------------------------
-  if (loading || !tournament) {
+  if (!activeTournament) {
     return (
       <View style={[styles.centered, { backgroundColor: themeColors.background }]}>
         <ActivityIndicator size="large" color={themeColors.tint} />
@@ -317,17 +292,58 @@ export default function PicksScreen() {
         showsVerticalScrollIndicator={false}
       >
 
+        {/* Tournament Selector — match Home screen UI */}
+        {availableTournaments.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 15 }}
+          >
+            {availableTournaments.map((tournament: any) => {
+              const isSelected = String(tournament.id) === activeTournamentId;
+
+              return (
+                <Pressable
+                  key={String(tournament.id)}
+                  onPress={() => {
+                    setActiveTournamentId(String(tournament.id));
+                    fetchPicksAndLeaderboard(tournament);
+                  }}
+                  style={{
+                    paddingHorizontal: 15,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    marginRight: 10,
+                    borderColor: themeColors.text,
+                    backgroundColor: isSelected ? "#000" : "transparent",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: isSelected ? "#fff" : themeColors.text,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {tournament.name ?? "Tournament"}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+
         <PickWidget
           golferIds={userPicks.map(p => p.golfer_id)}
           leaderboard={leaderboard}
-          tournament={tournament}
+          tournament={activeTournament}
           onRemove={(golferId) => {
             const pick = userPicks.find(p => p.golfer_id === golferId);
             if (pick) deletePick(pick.id);
           }}
         />
 
-        {tournament.is_open_for_picks && (
+        {activeTournament.is_open_for_picks && (
           <>
             <TouchableOpacity
               style={[
@@ -362,7 +378,7 @@ export default function PicksScreen() {
           </>
         )}
 
-        {!tournament.is_open_for_picks && (
+        {!activeTournament.is_open_for_picks && (
           <TouchableOpacity
             style={[styles.makePickButton, { backgroundColor: themeColors.tint, marginTop: 6 }]}
             onPress={() => router.push("/(app)/pick-history")}
@@ -373,12 +389,13 @@ export default function PicksScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Summary widget switches with active tab (S-1) */}
         <PickSummaryWidget
-          tournamentId={tournament.id}
+          tournamentId={activeTournament.id}
           inLeague={userInLeague}
           leagueId={userLeagueId}
           leaderboard={leaderboard}
-          isOpenForPicks={tournament.is_open_for_picks}
+          isOpenForPicks={activeTournament.is_open_for_picks}
         />
 
         {!userInLeague && (
@@ -409,7 +426,7 @@ export default function PicksScreen() {
 
         {userInLeague && (
           <>
-            {tournament.is_open_for_picks ? (
+            {activeTournament.is_open_for_picks ? (
               <View
                 style={{
                   marginTop: 30,
@@ -433,7 +450,6 @@ export default function PicksScreen() {
                   League Picks
                 </Text>
 
-                {/* ⭐ UPDATED LEAGUE PICKS LIST ⭐ */}
                 <FlatList
                   data={leaguePicks}
                   keyExtractor={(item) => item.id.toString()}
@@ -463,7 +479,6 @@ export default function PicksScreen() {
                           borderRadius: 6,
                         }}
                       >
-                        {/* Placement Number */}
                         <Text
                           style={{
                             width: 30,
@@ -475,7 +490,6 @@ export default function PicksScreen() {
                           {placement}
                         </Text>
 
-                        {/* Name + Golfer */}
                         <Text
                           style={{
                             flex: 1,
@@ -508,6 +522,48 @@ export default function PicksScreen() {
             Select a Golfer
           </Text>
 
+          {/* Tournament Selector inside modal — match Home screen UI */}
+          {availableTournaments.length > 1 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: 15 }}
+            >
+              {availableTournaments.map((tournament: any) => {
+                const isSelected = String(tournament.id) === activeTournamentId;
+
+                return (
+                  <Pressable
+                    key={String(tournament.id)}
+                    onPress={() => {
+                      setActiveTournamentId(String(tournament.id));
+                      setSearchQuery("");
+                      fetchPicksAndLeaderboard(tournament);
+                    }}
+                    style={{
+                      paddingHorizontal: 15,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      borderWidth: 1,
+                      marginRight: 10,
+                      borderColor: themeColors.text,
+                      backgroundColor: isSelected ? "#000" : "transparent",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: isSelected ? "#fff" : themeColors.text,
+                        fontWeight: "600",
+                      }}
+                    >
+                      {tournament.name ?? "Tournament"}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+
           <TextInput
             placeholder="Search golfers..."
             placeholderTextColor={themeColors.text + "66"}
@@ -526,7 +582,7 @@ export default function PicksScreen() {
             }}
           />
 
-          {!tournament.is_open_for_picks || pickerList.length === 0 ? (
+          {!activeTournament.is_open_for_picks || pickerList.length === 0 ? (
             <View style={{ marginTop: 40, alignItems: 'center' }}>
               <Text style={{ fontSize: 16, color: themeColors.text + "99", textAlign: 'center', paddingHorizontal: 20 }}>
                 The field for this tournament is not available yet.
@@ -546,7 +602,7 @@ export default function PicksScreen() {
                     { borderBottomWidth: 1, borderBottomColor: themeColors.border },
                   ]}
                   onPress={() =>
-                    tournament.is_open_for_picks && submitPick(item)
+                    activeTournament.is_open_for_picks && submitPick(item)
                   }
                 >
                   <Text style={[styles.golferName, { color: themeColors.text }]}>

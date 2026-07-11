@@ -112,34 +112,84 @@ export async function fetchEventMeta(eventId: number) {
 }
 
 // ---------------------------------------------------------
-// Get Active Tournament
+// Get Available Tournaments (activation-time driven)
 // ---------------------------------------------------------
-export async function getActiveTournament() {
+export async function getAvailableTournaments() {
   const { data, error } = await supabase
     .from("tournaments")
     .select("*")
-    .order("activation_time", { ascending: true });
+    .order("activation_time", { ascending: false });
 
-  if (error || !data) return null;
+  if (error || !data) {
+    console.error("getAvailableTournaments error:", error);
+    return [];
+  }
 
-  const inProgress = data.find(t => t.in_progress === true);
-  if (inProgress) return inProgress;
+  const now = new Date();
 
-  const lingering = data.find(t => t.linger_window === true);
-  if (lingering) return lingering;
+  return data.filter(tournament => {
+    const activation = new Date(tournament.activation_time);
 
-  const upNext = data.find(t => t.up_next === true);
-  if (upNext) return upNext;
+    // Show:
+    // - upcoming tournaments
+    // - active tournaments
+    // - recently completed tournaments
+    //
+    // Hide old tournaments after completion window
 
-  const completed = data
-    .filter(t => t.is_completed === true)
-    .sort(
-      (a, b) =>
-        new Date(b.activation_time).getTime() -
-        new Date(a.activation_time).getTime()
-    );
+    if (tournament.up_next) return true;
+    if (tournament.in_progress) return true;
+    if (tournament.linger_window) return true;
 
-  return completed[0] ?? null;
+    if (tournament.is_completed) {
+      const daysSinceActivation =
+        (now.getTime() - activation.getTime()) /
+        (1000 * 60 * 60 * 24);
+
+      return daysSinceActivation < 7;
+    }
+
+    return false;
+  });
+}
+
+export function useAvailableTournaments() {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      setLoading(true);
+
+      try {
+        const tournaments = await getAvailableTournaments();
+
+        if (active) {
+          setData(tournaments);
+        }
+      } catch (err) {
+        console.error(
+          "useAvailableTournaments error:",
+          err
+        );
+      }
+
+      if (active) setLoading(false);
+    }
+
+    load();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return {
+    tournaments: data,
+    loading
+  };
 }
 
 // ---------------------------------------------------------
