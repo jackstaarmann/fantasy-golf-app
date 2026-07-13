@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -15,7 +16,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import BigMoversWidget from "@/components/big-movers-widget";
+import PickStatsWidget from "@/components/pick-stats-widget";
 import RankingHeatmapWidget from "@/components/ranking-heatmap-widget";
+
 
 type LeaderboardUser = {
   id: string;
@@ -501,6 +504,19 @@ export default function LeaderboardScreen() {
             );
           })
         )}
+
+        {/* Global Pick Stats Widget */}
+        {activeTab === "global" && (
+          <View style={{ marginTop: 24 }}>
+            {userId ? (
+              <PickStatsWidget userId={userId} />
+            ) : (
+              <ActivityIndicator size="large" color={themeColors.tint} />
+            )}
+          </View>
+        )}
+
+
 
         {/* Big Movers */}
         {leagueId && activeTab === "league" && (

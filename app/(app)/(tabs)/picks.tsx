@@ -250,11 +250,13 @@ export default function PicksScreen() {
       tournament_id: activeTournament.id,
       golfer_id: player.athleteId,
       league_id: userLeagueId,
+      season: "2026", // <-- NEW FIELD
     });
 
     setPickerModalVisible(false);
     await fetchPicksAndLeaderboard(activeTournament);
   };
+
 
   const deletePick = async (pickId: number) => {
     if (!activeTournament) return;
