@@ -295,45 +295,51 @@ export default function PicksScreen() {
       >
 
         {/* Tournament Selector — match Home screen UI */}
-        {availableTournaments.length > 1 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 15 }}
-          >
-            {availableTournaments.map((tournament: any) => {
-              const isSelected = String(tournament.id) === activeTournamentId;
+      {availableTournaments.length > 1 && (
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    style={{ marginBottom: 15 }}
+  >
+    {availableTournaments.map((tournament: any) => {
+      const isSelected = String(tournament.id) === activeTournamentId;
 
-              return (
-                <Pressable
-                  key={String(tournament.id)}
-                  onPress={() => {
-                    setActiveTournamentId(String(tournament.id));
-                    fetchPicksAndLeaderboard(tournament);
-                  }}
-                  style={{
-                    paddingHorizontal: 15,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    borderWidth: 1,
-                    marginRight: 10,
-                    borderColor: themeColors.text,
-                    backgroundColor: isSelected ? "#000" : "transparent",
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: isSelected ? "#fff" : themeColors.text,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {tournament.name ?? "Tournament"}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        )}
+      return (
+        <Pressable
+          key={String(tournament.id)}
+          onPress={() => {
+            setActiveTournamentId(String(tournament.id));
+            setSearchQuery("");
+            fetchPicksAndLeaderboard(tournament);
+          }}
+          style={{
+            paddingHorizontal: 15,
+            paddingVertical: 8,
+            borderRadius: 20,
+            borderWidth: 1,
+            marginRight: 10,
+            borderColor: themeColors.text,
+            backgroundColor: isSelected
+              ? themeColors.tint
+              : themeColors.card,
+          }}
+        >
+          <Text
+            style={{
+              color: isSelected
+                ? themeColors.background
+                : themeColors.text,
+              fontWeight: "600",
+            }}
+          >
+            {tournament.name ?? "Tournament"}
+          </Text>
+        </Pressable>
+      );
+    })}
+  </ScrollView>
+)}
+
 
         <PickWidget
           golferIds={userPicks.map(p => p.golfer_id)}

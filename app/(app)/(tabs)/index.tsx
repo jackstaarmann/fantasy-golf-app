@@ -62,38 +62,25 @@ export default function HomePage() {
       async function load() {
         if (!user) return;
 
-        const available =
-          await getAvailableTournaments();
-
+        const available = await getAvailableTournaments();
         if (!isActive || !available.length) return;
 
         setTournaments(available);
 
-        const savedTournamentId =
-  await AsyncStorage.getItem(
-    SELECTED_TOURNAMENT_KEY
-  );
-
-const savedTournament = savedTournamentId
-  ? available.find(
-      (t) => String(t.id) === savedTournamentId
-    )
-  : null;
-
-const initialTournament =
-  savedTournament ?? available[0];
-
-setSelectedTournament(initialTournament);
-
-        const pick = await getUserPick(
-          user.id,
-          String(savedTournament.id)
+        const savedTournamentId = await AsyncStorage.getItem(
+          SELECTED_TOURNAMENT_KEY
         );
 
+        const savedTournament = savedTournamentId
+          ? available.find((t) => String(t.id) === savedTournamentId)
+          : null;
+
+        const initialTournament = savedTournament ?? available[0];
+        setSelectedTournament(initialTournament);
+
+        const pick = await getUserPick(user.id, String(initialTournament.id));
         if (isActive) {
-          setGolferId(
-            pick?.golfer_id ?? null
-          );
+          setGolferId(pick?.golfer_id ?? null);
         }
 
         const { data: league } = await supabase
@@ -103,64 +90,43 @@ setSelectedTournament(initialTournament);
           .maybeSingle();
 
         if (isActive) {
-          setLeagueId(
-            league?.league_id ?? null
-          );
+          setLeagueId(league?.league_id ?? null);
         }
 
-        const w = await getWeatherForEvent(
-          String(savedTournament.id)
-        );
-
+        const w = await getWeatherForEvent(String(initialTournament.id));
         if (isActive) {
           setWeather(w);
         }
       }
 
       load();
-
       return () => {
         isActive = false;
       };
     }, [user])
   );
 
+  const handleTournamentChange = async (tournament: Tournament) => {
+    await AsyncStorage.setItem(
+      SELECTED_TOURNAMENT_KEY,
+      String(tournament.id)
+    );
 
-  const handleTournamentChange = async (
-  tournament: Tournament
-) => {
+    setSelectedTournament(tournament);
 
-  await AsyncStorage.setItem(
-    SELECTED_TOURNAMENT_KEY,
-    String(tournament.id)
-  );
+    if (!user) return;
 
-  setSelectedTournament(tournament);
+    const pick = await getUserPick(user.id, String(tournament.id));
+    setGolferId(pick?.golfer_id ?? null);
 
-  if (!user) return;
-
-  const pick = await getUserPick(
-    user.id,
-    String(tournament.id)
-  );
-
-  setGolferId(
-    pick?.golfer_id ?? null
-  );
-
-  const w = await getWeatherForEvent(
-    String(tournament.id)
-  );
-
-  setWeather(w);
-};
-
+    const w = await getWeatherForEvent(String(tournament.id));
+    setWeather(w);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.replace("/login");
   };
-
 
   return (
     <SafeAreaView
@@ -172,13 +138,10 @@ setSelectedTournament(initialTournament);
       <ScrollView
         contentContainerStyle={[
           styles.container,
-          {
-            backgroundColor:
-              themeColors.background,
-          },
+          { backgroundColor: themeColors.background },
         ]}
       >
-
+        {/* Logout Button */}
         <View style={styles.authButtonContainer}>
           {session ? (
             <Pressable onPress={handleLogout}>
@@ -187,24 +150,16 @@ setSelectedTournament(initialTournament);
                 style={{
                   width: 26,
                   height: 26,
-                  tintColor:
-                    themeColors.text,
+                  tintColor: themeColors.text,
                 }}
               />
             </Pressable>
           ) : (
-            <Pressable
-              onPress={() =>
-                router.push("/login")
-              }
-            >
+            <Pressable onPress={() => router.push("/login")}>
               <Text
                 style={[
                   styles.authButtonText,
-                  {
-                    color:
-                      themeColors.tint,
-                  },
+                  { color: themeColors.tint },
                 ]}
               >
                 Login
@@ -213,33 +168,25 @@ setSelectedTournament(initialTournament);
           )}
         </View>
 
-
+        {/* Info Button */}
         <View style={styles.infoButtonContainer}>
-          <Pressable
-            onPress={() =>
-              router.push("/rules")
-            }
-          >
+          <Pressable onPress={() => router.push("/rules")}>
             <View
               style={{
                 width: 26,
                 height: 26,
                 borderRadius: 13,
                 borderWidth: 1.5,
-                borderColor:
-                  themeColors.text,
+                borderColor: themeColors.text,
                 alignItems: "center",
-                justifyContent:
-                  "center",
+                justifyContent: "center",
               }}
             >
               <Text
                 style={{
                   fontSize: 16,
-                  color:
-                    themeColors.text,
-                  fontWeight:
-                    "600",
+                  color: themeColors.text,
+                  fontWeight: "600",
                 }}
               >
                 i
@@ -248,19 +195,14 @@ setSelectedTournament(initialTournament);
           </Pressable>
         </View>
 
-
         <Text
           style={[
             styles.title,
-            {
-              color:
-                themeColors.text,
-            },
+            { color: themeColors.text },
           ]}
         >
           Swing by Staarmann
         </Text>
-
 
         {/* Tournament Selector */}
         {tournaments.length > 1 && (
@@ -269,78 +211,61 @@ setSelectedTournament(initialTournament);
             showsHorizontalScrollIndicator={false}
             style={styles.selector}
           >
-            {tournaments.map((tournament) => (
-              <Pressable
-                key={String(tournament.id)}
-                onPress={() =>
-                  handleTournamentChange(
-                    tournament
-                  )
-                }
-                style={[
-                  styles.tournamentButton,
-                  selectedTournament?.id ===
-                    tournament.id &&
-                    styles.selectedTournament,
-                ]}
-              >
-                <Text
-                  style={{
-                    color:
-                      selectedTournament?.id ===
-                      tournament.id
-                        ? "#fff"
-                        : themeColors.text,
-                    fontWeight:
-                      "600",
-                  }}
+            {tournaments.map((tournament) => {
+              const selected =
+                selectedTournament?.id === tournament.id;
+
+              return (
+                <Pressable
+                  key={String(tournament.id)}
+                  onPress={() => handleTournamentChange(tournament)}
+                  style={[
+                    styles.tournamentButton,
+                    {
+                      borderColor: themeColors.text,
+                      backgroundColor: selected
+                        ? themeColors.tint
+                        : themeColors.card,
+                    },
+                  ]}
                 >
-                  {tournament.name ??
-                    "Tournament"}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={{
+                      color: selected
+                        ? themeColors.background
+                        : themeColors.text,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {tournament.name ?? "Tournament"}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </ScrollView>
         )}
 
-
         <View style={styles.widgetSpacing}>
-          <EventWidget
-            tournamentId={
-              selectedTournament?.id
-            }
-          />
+          <EventWidget tournamentId={selectedTournament?.id} />
         </View>
 
-
         <View style={styles.widgetSpacing}>
-          <WeatherWidget
-            weather={weather}
-          />
+          <WeatherWidget weather={weather} />
         </View>
 
-
         <View style={styles.widgetSpacing}>
-          <LeaderboardWidget
-            tournamentId={
-              selectedTournament?.id
-            }
-          />
+          <LeaderboardWidget tournamentId={selectedTournament?.id} />
         </View>
-
 
         <View style={styles.widgetSpacing}>
           <NewsWidget />
         </View>
 
-
         <SwingFooter />
-
       </ScrollView>
     </SafeAreaView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -363,10 +288,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     marginRight: 10,
-  },
-
-  selectedTournament: {
-    backgroundColor: "#000",
   },
 
   authButtonContainer: {
@@ -396,4 +317,3 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
-
