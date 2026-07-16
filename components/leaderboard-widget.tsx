@@ -50,7 +50,6 @@ export default function LeaderboardWidget({
 
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tournamentId, setTournamentId] = useState<number | null>(null);
   const [timezone, setTimezone] = useState<string | null>(null);
   const [currentRound, setCurrentRound] = useState<number>(1);
 
@@ -80,57 +79,11 @@ export default function LeaderboardWidget({
     }
   }
 
-  async function loadTournament() {
-    const { data } = await supabase
-      .from("tournaments")
-      .select("*")
-      .order("activation_time", { ascending: true });
-
-    if (!data || data.length === 0) return;
-
-    let activeEvent: any = null;
-
-    const inProgress = data.find((t) => t.in_progress === true);
-    if (inProgress) activeEvent = inProgress;
-
-    if (!activeEvent) {
-      const lingering = data.find((t) => t.linger_window === true);
-      if (lingering) activeEvent = lingering;
-    }
-
-    if (!activeEvent) {
-      const upNext = data.find((t) => t.up_next === true);
-      if (upNext) activeEvent = upNext;
-    }
-
-    if (!activeEvent) {
-      const completed = [...data]
-        .filter((t) => t.is_completed === true)
-        .sort(
-          (a, b) =>
-            new Date(b.activation_time).getTime() -
-            new Date(a.activation_time).getTime()
-        )[0];
-
-      activeEvent = completed ?? null;
-    }
-
-    if (activeEvent) {
-      setTournamentId(Number(activeEvent.id));
-    } else {
-      setTournamentId(null);
-      setPlayers([]);
-      setLoading(false);
-    }
-  }
-
   async function loadLeaderboard() {
-if (!selectedTournamentId) return;
+    if (!selectedTournamentId) return;
 
-try {
-  const data = await fetchLeaderboard(
-    Number(selectedTournamentId)
-  );
+    try {
+      const data = await fetchLeaderboard(Number(selectedTournamentId));
 
       const round = computeTournamentRound(data);
       setCurrentRound(round);
@@ -142,26 +95,29 @@ try {
     }
   }
 
+  // Initial load
   useEffect(() => {
     async function init() {
       await loadUserTimezone();
-      await loadTournament();
     }
     init();
   }, []);
 
+  // Refresh timezone when screen focuses
   useFocusEffect(
     React.useCallback(() => {
       loadUserTimezone();
     }, [])
   );
 
+  // FIXED: Load leaderboard whenever selectedTournamentId changes
   useEffect(() => {
-    if (!tournamentId) return;
+    if (!selectedTournamentId) return;
 
+    setLoading(true);
     loadLeaderboard();
-    const interval = setInterval(loadLeaderboard, 10000);
 
+    const interval = setInterval(loadLeaderboard, 10000);
     return () => clearInterval(interval);
   }, [selectedTournamentId]);
 
@@ -189,7 +145,7 @@ try {
 
       {loading && <ActivityIndicator size="small" color={themeColors.tint} />}
 
-      {!loading && tournamentId && players.length > 0 && (
+      {!loading && selectedTournamentId && players.length > 0 && (
         <>
           {/* Header Row */}
           <View
@@ -325,7 +281,7 @@ try {
         </>
       )}
 
-      {!loading && !tournamentId && (
+      {!loading && !selectedTournamentId && (
         <Text style={{ color: themeColors.text + "99", marginTop: 4 }}>
           Leaderboard will appear when tee times are posted.
         </Text>
